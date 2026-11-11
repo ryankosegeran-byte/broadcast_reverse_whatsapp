@@ -272,10 +272,21 @@ textarea.body {
   padding: 8px 10px;
 }
 
+.var-add {
+  display: flex;
+  gap: 8px;
+}
+
+.var-add .input {
+  flex: 0 1 200px;
+  width: auto;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-top: 8px;
 }
 
 .chip {

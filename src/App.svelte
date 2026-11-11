@@ -20,6 +20,7 @@
   let showPaste = $state(false)
   let showAdd = $state(false)
   let pasteText = $state('')
+  let newVar = $state('')
   let showImport = $state(false)
   let importData = $state(null)
   let importInfo = $state(null)
@@ -95,6 +96,14 @@
     await tick()
     bodyEl.focus()
     bodyEl.selectionStart = bodyEl.selectionEnd = start + token.length
+  }
+
+  function addVariable(event) {
+    event.preventDefault()
+    const name = newVar.trim().replace(/^\{\{|\}\}$/g, '').trim()
+    if (!/^[\w.-]+$/.test(name)) return notify(t('badVarName'))
+    insertVar(name)
+    newVar = ''
   }
 
   function pushContact(rawPhone, rawName, values, quiet = false) {
@@ -320,13 +329,23 @@
 
       <div class="field">
         <span class="label-text">{t('variables')}</span>
+        <form class="var-add" onsubmit={addVariable}>
+          <input
+            class="input"
+            bind:value={newVar}
+            placeholder={t('varNamePlaceholder')}
+            aria-label={t('addVariable')}
+          />
+          <button class="btn primary small" type="submit">+ {t('addVariable')}</button>
+        </form>
         <div class="chips">
           <button class="chip" type="button" onclick={() => insertVar('nama')}>+ {'{{nama}}'}</button>
           {#each valueVars as v (v)}
             <button class="chip" type="button" onclick={() => insertVar(v)}>+ {'{{' + v + '}}'}</button>
           {/each}
         </div>
-        <p class="muted tiny">{t('insertHint')} {t('nameBuiltinHint')}</p>
+        <p class="muted tiny">{t('insertHint')}</p>
+        <p class="muted tiny">{t('nameBuiltinHint')}</p>
       </div>
 
       {#if valueVars.length}

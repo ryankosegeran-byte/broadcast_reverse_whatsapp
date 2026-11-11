@@ -22,6 +22,7 @@ Tidak ada backend. Tidak ada pengiriman otomatis.
 
 - Sintaks: `{{nama}}`, `{{invoice}}`, `{{total}}`, `{{jatuh_tempo}}`.
 - Nama variabel bebas: huruf, angka, `_`, `.`, `-`.
+- Variabel dibuat dengan **menulis `{{nama_var}}` di badan pesan**, atau lewat kotak **Add variable** di bagian Variables (isi nama, klik Add → token disisipkan di posisi kursor).
 - Variabel terdeteksi otomatis dari body template. Hapus dari body → hilang dari form.
 - `{{nama}}` **bawaan**: selalu diisi dari nama kontak, tidak perlu didefinisikan.
 - Urutan nilai: nilai khusus kontak → nama kontak (untuk `{{nama}}`) → nilai global → kosong.
