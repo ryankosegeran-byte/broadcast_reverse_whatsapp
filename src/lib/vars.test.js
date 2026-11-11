@@ -42,3 +42,11 @@ test('varLabel falls back to the key', () => {
   assert.equal(varLabel(tpl, 'invoice'), 'No. Invoice')
   assert.equal(varLabel(tpl, 'other'), 'other')
 })
+
+test('templateVarKeys ignores malformed declared vars and keeps body order stable', () => {
+  const tpl = {
+    body: 'Hi {{nama}}, {{b}} then {{a}} then {{b}}',
+    vars: [null, { key: 'bad key!' }, { key: '' }, { key: 'c', label: 'C' }],
+  }
+  assert.deepEqual(templateVarKeys(tpl), ['c', 'nama', 'b', 'a'])
+})

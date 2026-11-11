@@ -308,8 +308,27 @@
     event.preventDefault()
     const name = newVar.trim().replace(/^\{\{|\}\}$/g, '').trim()
     if (!/^[\w.-]+$/.test(name)) return notify(t('badVarName'))
+    active.vars ??= []
+    if (name !== 'nama' && !active.vars.some((v) => v.key === name)) {
+      active.vars.push({ key: name, label: '' })
+    }
     insertVar(name)
     newVar = ''
+  }
+
+  function setVarLabel(key, value) {
+    if (!active) return
+    active.vars ??= []
+    const found = active.vars.find((v) => v.key === key)
+    if (found) found.label = value
+    else active.vars.push({ key, label: value })
+  }
+
+  function removeVar(key) {
+    if (!active) return
+    active.vars = (active.vars ?? []).filter((v) => v.key !== key)
+    const esc = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    active.body = active.body.replace(new RegExp('\\{\\{\\s*' + esc + '\\s*\\}\\}', 'g'), '')
   }
 
   function pushContact(rawPhone, rawName, values, quiet = false) {
@@ -843,27 +862,41 @@
           </div>
           <p class="hint">{t('insertHint')}</p>
           <p class="hint">{t('nameBuiltinHint')}</p>
-        </div>
 
-        {#if valueVars.length}
-          <div class="field globals-block">
-            <span class="field-label">{t('globalValues')}</span>
-            <p class="hint">{t('globalHint')}</p>
-            <div class="globals">
+          {#if valueVars.length}
+            <div class="var-rows" style="margin-top:10px">
               {#each valueVars as v (v)}
-                <label class="global-row">
-                  <span class="global-key">{v}</span>
+                <div class="var-row">
+                  <span class="var-key">{'{{' + v + '}}'}</span>
+                  <input
+                    class="input"
+                    value={(active.vars ?? []).find((x) => x.key === v)?.label ?? ''}
+                    placeholder={t('varDisplayName')}
+                    aria-label={t('varDisplayName') + ' ' + v}
+                    oninput={(e) => setVarLabel(v, e.currentTarget.value)}
+                  />
                   <input
                     class="input"
                     value={active.globals[v] ?? ''}
-                    placeholder="-"
+                    placeholder={t('varDefault')}
+                    aria-label={t('varDefault') + ' ' + v}
                     oninput={(e) => (active.globals[v] = e.currentTarget.value)}
                   />
-                </label>
+                  <button
+                    class="btn icon-btn danger-ghost sm"
+                    type="button"
+                    title={t('removeVariable')}
+                    aria-label={t('removeVariable')}
+                    onclick={() => removeVar(v)}
+                  >
+                    <Icon name="trash" size={14} />
+                  </button>
+                </div>
               {/each}
             </div>
-          </div>
-        {/if}
+            <p class="hint">{t('globalHint')}</p>
+          {/if}
+        </div>
       </section>
 
       <aside class="panel preview-panel" aria-label={t('preview')}>
