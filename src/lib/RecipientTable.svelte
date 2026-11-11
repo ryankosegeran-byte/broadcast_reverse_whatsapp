@@ -193,32 +193,30 @@
   {#each labelPool as label (label)}<option value={label}></option>{/each}
 </datalist>
 
-{#if totalCount > 0}
-  <div class="table-tools">
-    <div class="search-field">
-      <span class="search-icon" aria-hidden="true">
-        <Icon name="search" size={15} />
-      </span>
-      <input
-        class="input search-input"
-        type="search"
-        placeholder={t('search')}
-        bind:value={query}
-        aria-label={t('search')}
-      />
-      {#if query}
-        <button
-          class="search-clear"
-          type="button"
-          aria-label={t('clearSearch')}
-          onclick={() => (query = '')}
-        >
-          <Icon name="x" size={13} />
-        </button>
-      {/if}
-    </div>
+<div class="table-tools">
+  <div class="search-field">
+    <span class="search-icon" aria-hidden="true">
+      <Icon name="search" size={15} />
+    </span>
+    <input
+      class="input search-input"
+      type="search"
+      placeholder={t('search')}
+      bind:value={query}
+      aria-label={t('search')}
+    />
+    {#if query}
+      <button
+        class="search-clear"
+        type="button"
+        aria-label={t('clearSearch')}
+        onclick={() => (query = '')}
+      >
+        <Icon name="x" size={13} />
+      </button>
+    {/if}
   </div>
-{/if}
+</div>
 
 {#if labelPool.length}
   <div class="label-filter">

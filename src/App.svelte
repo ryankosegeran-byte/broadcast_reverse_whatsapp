@@ -27,6 +27,9 @@
   let showPaste = $state(false)
   let showAdd = $state(false)
   let pasteText = $state('')
+  let pasteError = $state('')
+  let addPhoneError = $state('')
+  let addSavedCount = $state(0)
   let newVar = $state('')
   let showImport = $state(false)
   let showContactImport = $state(false)
@@ -46,6 +49,12 @@
   let nameEl = $state(null)
   let bodyEl = $state(null)
   let emojiBtnEl = $state(null)
+  let addBtnEl = $state(null)
+  let pasteBtnEl = $state(null)
+  let addPhoneEl = $state(null)
+  let pasteEl = $state(null)
+  let addDialogEl = $state(null)
+  let pasteDialogEl = $state(null)
   let mobileMenuEl = $state(null)
   let mobileMenuBtnEl = $state(null)
   let viewportEl = $state(null)
@@ -162,6 +171,25 @@
       }
     }
     const onKeyDown = (e) => {
+      if (showHelp || showImport || showContactImport || editingId) return
+      if (showAdd) {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          closeAddModal(true)
+          return
+        }
+        trapModalTab(e, addDialogEl)
+        return
+      }
+      if (showPaste) {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          closePasteModal(true)
+          return
+        }
+        trapModalTab(e, pasteDialogEl)
+        return
+      }
       if (e.key === 'Escape' && showMobileMenu) {
         e.preventDefault()
         closeMobileMenu(true)
@@ -283,11 +311,34 @@
     bodyEl.selectionEnd = next.end
   }
 
+  function trapModalTab(e, el) {
+    if (e.key !== 'Tab' || !el) return
+    const focusables = [
+      ...el.querySelectorAll(
+        'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+      ),
+    ]
+    if (!focusables.length) return
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault()
+      first.focus()
+    }
+  }
+
   async function insertVar(key) {
     if (!active || !bodyEl) return
     const token = `{{${key}}}`
-    const start = bodyEl.selectionStart ?? bodyCursor?.start ?? active.body.length
-    const end = bodyEl.selectionEnd ?? bodyCursor?.end ?? start
+    const len = active.body.length
+    const hasLiveFocus = document.activeElement === bodyEl
+    const rawStart = hasLiveFocus ? bodyEl.selectionStart : (bodyCursor?.start ?? len)
+    const rawEnd = hasLiveFocus ? bodyEl.selectionEnd : (bodyCursor?.end ?? rawStart)
+    const start = Math.max(0, Math.min(rawStart ?? len, len))
+    const end = Math.max(start, Math.min(rawEnd ?? start, len))
     active.body = active.body.slice(0, start) + token + active.body.slice(end)
     const nextPos = start + token.length
     bodyCursor = { start: nextPos, end: nextPos }
@@ -343,31 +394,50 @@
     const phone = normalizePhone(rawPhone)
     if (!isValidPhone(phone)) {
       if (!quiet) notify(t('badPhone'))
-      return false
+      return null
     }
     if (data.contacts.some((c) => c.phone === phone)) {
       if (!quiet) notify(t('dupPhone'))
-      return false
+      return null
     }
-    data.contacts.push({
+    const created = {
       id: store.uid('c'),
       phone,
       name: String(rawName ?? '').trim(),
       labels: [],
       values: active ? { [active.id]: values } : {},
       sentAt: {},
-    })
-    return true
+    }
+    data.contacts.push(created)
+    return created
   }
 
-  function addManual(event) {
-    event.preventDefault()
+  function submitManualContact(keepOpen = false) {
+    const phone = normalizePhone(form.phone)
+    if (!isValidPhone(phone)) {
+      addPhoneError = t('badPhone')
+      tick().then(() => addPhoneEl?.focus())
+      return
+    }
+    if (data.contacts.some((c) => c.phone === phone)) {
+      addPhoneError = t('dupPhone')
+      tick().then(() => addPhoneEl?.focus())
+      return
+    }
     const values = {}
     for (const [key, value] of Object.entries(form.values)) {
       if (value?.trim()) values[key] = value.trim()
     }
-    if (pushContact(form.phone, form.name, values)) {
-      form = { phone: '', name: '', values: {} }
+    const created = pushContact(phone, form.name, values, true)
+    if (!created) return
+    previewId = created.id
+    addPhoneError = ''
+    form = { phone: '', name: '', values: {} }
+    if (keepOpen) {
+      addSavedCount += 1
+      tick().then(() => addPhoneEl?.focus())
+    } else {
+      closeAddModal(true)
     }
   }
 
@@ -378,6 +448,7 @@
       .filter(Boolean)
     let ok = 0
     let fail = 0
+    let lastAdded = null
     for (const line of lines) {
       const sep = line.includes('|') ? '|' : line.includes('\t') ? '\t' : ','
       const cols = line.split(sep).map((cell) => cell.trim())
@@ -386,13 +457,22 @@
         const value = cols[2 + index]
         if (value) values[key] = value
       })
-      if (pushContact(cols[0], cols[1] ?? '', values, true)) ok++
-      else fail++
+      const created = pushContact(cols[0], cols[1] ?? '', values, true)
+      if (created) {
+        ok++
+        lastAdded = created
+      } else {
+        fail++
+      }
     }
-    if (lines.length) notify(t('pasteResult', { ok, fail }))
     if (ok) {
+      if (lastAdded) previewId = lastAdded.id
       pasteText = ''
-      showPaste = false
+      pasteError = ''
+      closePasteModal(true)
+      notify(t('pasteResult', { ok, fail }))
+    } else if (lines.length) {
+      pasteError = t('pasteResult', { ok, fail })
     }
   }
 
@@ -492,14 +572,39 @@
     notify(t('importContactsDone', { added, merged, bad: stats.bad }))
   }
 
-  function togglePaste() {
-    showPaste = !showPaste
-    if (showPaste) showAdd = false
+  function openPasteModal() {
+    if (showHelp || showImport || showContactImport || editingId) return
+    showMobileMenu = false
+    showEmoji = false
+    showPaste = true
+    showAdd = false
+    pasteError = ''
+    tick().then(() => pasteEl?.focus())
   }
 
-  function toggleAdd() {
-    showAdd = !showAdd
-    if (showAdd) showPaste = false
+  function closePasteModal(restoreFocus = false) {
+    showPaste = false
+    pasteError = ''
+    if (restoreFocus) tick().then(() => pasteBtnEl?.focus())
+  }
+
+  function openAddModal() {
+    if (showHelp || showImport || showContactImport || editingId) return
+    showMobileMenu = false
+    showEmoji = false
+    showAdd = true
+    showPaste = false
+    addPhoneError = ''
+    addSavedCount = 0
+    tick().then(() => addPhoneEl?.focus())
+  }
+
+  function closeAddModal(restoreFocus = false) {
+    showAdd = false
+    addPhoneError = ''
+    addSavedCount = 0
+    form = { phone: '', name: '', values: {} }
+    if (restoreFocus) tick().then(() => addBtnEl?.focus())
   }
 </script>
 
@@ -811,23 +916,25 @@
           </div>
           <div class="recipients-actions" role="group" aria-label={t('recipients')}>
             <button
-              class="btn sm {showAdd ? 'active-toggle' : 'primary'}"
+              bind:this={addBtnEl}
+              class="btn sm primary"
               type="button"
-              aria-expanded={showAdd}
+              aria-haspopup="dialog"
               aria-label={t('addContact')}
               title={t('addContact')}
-              onclick={toggleAdd}
+              onclick={openAddModal}
             >
               <Icon name="plus" size={12} />
               <span>{t('addContactShort')}</span>
             </button>
             <button
-              class="btn sm {showPaste ? 'active-toggle' : 'secondary'}"
+              bind:this={pasteBtnEl}
+              class="btn sm secondary"
               type="button"
-              aria-expanded={showPaste}
+              aria-haspopup="dialog"
               aria-label={t('pasteRows')}
               title={t('pasteRows')}
-              onclick={togglePaste}
+              onclick={openPasteModal}
             >
               <Icon name="clipboard" size={12} />
               <span>{t('pasteRowsShort')}</span>
@@ -835,6 +942,7 @@
             <button
               class="btn sm secondary"
               type="button"
+              aria-haspopup="dialog"
               aria-label={t('importContacts')}
               title={t('importContacts')}
               onclick={() => (showContactImport = true)}
@@ -842,80 +950,6 @@
               <Icon name="upload" size={12} />
               <span>{t('importContactsShort')}</span>
             </button>
-          </div>
-        </div>
-
-        <div class="collapsible" data-open={showPaste ? 'true' : 'false'} inert={!showPaste}>
-          <div class="collapsible-inner">
-            <div class="subpanel">
-              <p class="hint">{active ? t('pasteHelp') : t('pasteHelpNoTemplate')}</p>
-              <textarea
-                class="input mono"
-                rows="4"
-                bind:value={pasteText}
-                placeholder={t('pastePlaceholder')}
-                disabled={!showPaste}
-              ></textarea>
-              <div class="row gap wrap">
-                <button
-                  class="btn primary sm"
-                  type="button"
-                  onclick={addPasted}
-                  disabled={!showPaste || !pasteText.trim()}
-                >
-                  {t('addContactsAction')}
-                </button>
-                <button class="btn ghost sm" type="button" onclick={() => (showPaste = false)}>
-                  {t('cancel')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="collapsible" data-open={showAdd ? 'true' : 'false'} inert={!showAdd}>
-          <div class="collapsible-inner">
-            <form class="subpanel" onsubmit={addManual}>
-              <div class="add-grid">
-                <label class="field">
-                  <span class="field-label">{t('phone')}</span>
-                  <input
-                    class="input"
-                    bind:value={form.phone}
-                    placeholder="0896..."
-                    required
-                    disabled={!showAdd}
-                  />
-                </label>
-                <label class="field">
-                  <span class="field-label">{t('name')}</span>
-                  <input
-                    class="input"
-                    bind:value={form.name}
-                    placeholder="-"
-                    disabled={!showAdd}
-                  />
-                </label>
-                {#each valueVars as v (v)}
-                  <label class="field">
-                    <span class="field-label" title={v}>{varLabel(active, v)}</span>
-                    <input
-                      class="input"
-                      value={form.values[v] ?? ''}
-                      placeholder="-"
-                      disabled={!showAdd}
-                      oninput={(e) => (form.values[v] = e.currentTarget.value)}
-                    />
-                  </label>
-                {/each}
-              </div>
-              <div class="row gap wrap">
-                <button class="btn primary sm" type="submit" disabled={!showAdd}>{t('add')}</button>
-                <button class="btn ghost sm" type="button" onclick={() => (showAdd = false)}>
-                  {t('cancel')}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
 
@@ -937,6 +971,86 @@
           onEdit={(contact, list) => openContactModal(contact, list)}
         />
       </section>
+
+      {#if active}
+        <section class="panel variables-panel" aria-label={t('variables')}>
+          <div class="panel-head variables-head">
+            <h2>{t('variables')}</h2>
+            {#if valueVars.length > 0}
+              <span class="badge neutral sm tabular">{valueVars.length}</span>
+            {/if}
+          </div>
+
+          <form class="var-add" onsubmit={addVariable}>
+            <input
+              class="input"
+              bind:value={newVar}
+              placeholder={t('varNamePlaceholder')}
+              aria-label={t('addVariable')}
+            />
+            <button
+              class="btn secondary sm"
+              type="submit"
+              title={t('addVariable')}
+              aria-label={t('addVariable')}
+            >
+              <Icon name="plus" size={14} />
+              <span>{t('add')}</span>
+            </button>
+          </form>
+
+          <div class="chips">
+            <button class="chip" type="button" onclick={() => insertVar('nama')}>+ {'{{nama}}'}</button>
+            {#each valueVars as v (v)}
+              <button class="chip" type="button" onclick={() => insertVar(v)}>+ {'{{' + v + '}}'}</button>
+            {/each}
+          </div>
+
+          <div class="var-hints">
+            <p class="hint">{t('insertHint')}</p>
+            <p class="hint">{t('nameBuiltinHint')}</p>
+          </div>
+
+          {#if valueVars.length}
+            <div class="var-rows">
+              {#each valueVars as v (v)}
+                <div class="var-row">
+                  <div class="var-row-head">
+                    <span class="var-key" title={'{{' + v + '}}'}>{'{{' + v + '}}'}</span>
+                    <button
+                      class="btn icon-btn danger-ghost xs"
+                      type="button"
+                      title={t('removeVariable')}
+                      aria-label={t('removeVariable')}
+                      onclick={() => removeVar(v)}
+                    >
+                      <Icon name="trash" size={13} />
+                    </button>
+                  </div>
+                  <div class="var-row-inputs">
+                    <input
+                      class="input"
+                      bind:value={
+                        () => (active.vars ?? []).find((x) => x.key === v)?.label ?? '',
+                        (val) => setVarLabel(v, val)
+                      }
+                      placeholder={t('varDisplayName')}
+                      aria-label={t('varDisplayName') + ' ' + v}
+                    />
+                    <input
+                      class="input"
+                      bind:value={() => active.globals[v] ?? '', (val) => (active.globals[v] = val)}
+                      placeholder={t('varDefault')}
+                      aria-label={t('varDefault') + ' ' + v}
+                    />
+                  </div>
+                </div>
+              {/each}
+            </div>
+            <p class="hint">{t('globalHint')}</p>
+          {/if}
+        </section>
+      {/if}
     </div>
 
     {#if active}
@@ -1040,71 +1154,14 @@
             class="input body"
             bind:this={bodyEl}
             bind:value={active.body}
-            rows="11"
+            rows="13"
             placeholder={t('bodyPlaceholder')}
+            onfocus={syncBodyCursor}
             onkeyup={syncBodyCursor}
             onmouseup={syncBodyCursor}
             onselect={syncBodyCursor}
             oninput={syncBodyCursor}
           ></textarea>
-        </div>
-
-        <div class="field">
-          <span class="field-label">{t('variables')}</span>
-          <form class="var-add" onsubmit={addVariable}>
-            <input
-              class="input"
-              bind:value={newVar}
-              placeholder={t('varNamePlaceholder')}
-              aria-label={t('addVariable')}
-            />
-            <button class="btn secondary sm" type="submit">
-              <Icon name="plus" size={14} />
-              <span>{t('addVariable')}</span>
-            </button>
-          </form>
-          <div class="chips">
-            <button class="chip" type="button" onclick={() => insertVar('nama')}>+ {'{{nama}}'}</button>
-            {#each valueVars as v (v)}
-              <button class="chip" type="button" onclick={() => insertVar(v)}>+ {'{{' + v + '}}'}</button>
-            {/each}
-          </div>
-          <p class="hint">{t('insertHint')}</p>
-          <p class="hint">{t('nameBuiltinHint')}</p>
-
-          {#if valueVars.length}
-            <div class="var-rows" style="margin-top:10px">
-              {#each valueVars as v (v)}
-                <div class="var-row">
-                  <span class="var-key">{'{{' + v + '}}'}</span>
-                  <input
-                    class="input"
-                    value={(active.vars ?? []).find((x) => x.key === v)?.label ?? ''}
-                    placeholder={t('varDisplayName')}
-                    aria-label={t('varDisplayName') + ' ' + v}
-                    oninput={(e) => setVarLabel(v, e.currentTarget.value)}
-                  />
-                  <input
-                    class="input"
-                    value={active.globals[v] ?? ''}
-                    placeholder={t('varDefault')}
-                    aria-label={t('varDefault') + ' ' + v}
-                    oninput={(e) => (active.globals[v] = e.currentTarget.value)}
-                  />
-                  <button
-                    class="btn icon-btn danger-ghost sm"
-                    type="button"
-                    title={t('removeVariable')}
-                    aria-label={t('removeVariable')}
-                    onclick={() => removeVar(v)}
-                  >
-                    <Icon name="trash" size={14} />
-                  </button>
-                </div>
-              {/each}
-            </div>
-            <p class="hint">{t('globalHint')}</p>
-          {/if}
         </div>
       </section>
 
@@ -1246,6 +1303,165 @@
     onImport={doImportContacts}
     onCancel={() => (showContactImport = false)}
   />
+{/if}
+
+{#if showAdd}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="overlay" onclick={(e) => e.target === e.currentTarget && closeAddModal(true)}>
+    <div
+      class="modal-card modal-add"
+      bind:this={addDialogEl}
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-contact-title"
+    >
+      <div class="modal-header">
+        <div>
+          <div class="cmodal-title-row">
+            <h2 id="add-contact-title" class="modal-title">{t('addContact')}</h2>
+            {#if addSavedCount > 0}
+              <span class="badge success sm tabular">
+                <span class="badge-dot" aria-hidden="true"></span>
+                {t('addedCountBadge', { n: addSavedCount })}
+              </span>
+            {/if}
+          </div>
+          <p class="modal-desc">{t('addContactDesc')}</p>
+        </div>
+        <button class="modal-close" type="button" onclick={() => closeAddModal(true)} aria-label={t('close')}>
+          <Icon name="x" size={16} />
+        </button>
+      </div>
+
+      <form
+        class="modal-add-form"
+        novalidate
+        onsubmit={(e) => {
+          e.preventDefault()
+          submitManualContact(false)
+        }}
+      >
+        <div class="modal-body">
+          <div class="cmodal-grid-2">
+            <label class="field">
+              <span class="field-label">{t('phone')}</span>
+              <input
+                bind:this={addPhoneEl}
+                class="input mono"
+                class:input-error={Boolean(addPhoneError)}
+                bind:value={form.phone}
+                placeholder="0896..."
+                oninput={() => (addPhoneError = '')}
+              />
+              {#if addPhoneError}
+                <span class="cmodal-error">{addPhoneError}</span>
+              {/if}
+            </label>
+            <label class="field">
+              <span class="field-label">{t('name')}</span>
+              <input
+                class="input"
+                bind:value={form.name}
+                placeholder="-"
+              />
+            </label>
+          </div>
+
+          {#if active && valueVars.length}
+            <div class="add-modal-vars">
+              <div class="add-modal-vars-head">
+                <span class="field-label">{t('contactSectionVars')}</span>
+                <span class="cmodal-tpl-tag">{active.name || t('untitled')}</span>
+              </div>
+              <div class="cmodal-grid-2">
+                {#each valueVars as v (v)}
+                  <label class="field">
+                    <span class="field-label" title={v}>{varLabel(active, v)}</span>
+                    <input
+                      class="input"
+                      bind:value={() => form.values[v] ?? '', (val) => (form.values[v] = val)}
+                      placeholder={active.globals?.[v] ? t('usingDefault', { val: active.globals[v] }) : '-'}
+                    />
+                  </label>
+                {/each}
+              </div>
+            </div>
+          {/if}
+        </div>
+
+        <div class="modal-footer cmodal-footer">
+          <button class="btn ghost sm" type="button" onclick={() => closeAddModal(true)}>
+            {t('cancel')}
+          </button>
+          <div class="row gap wrap">
+            <button class="btn secondary sm" type="button" onclick={() => submitManualContact(true)}>
+              <Icon name="plus" size={14} />
+              <span>{t('addAnother')}</span>
+            </button>
+            <button class="btn primary sm" type="submit">
+              {t('add')}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
+
+{#if showPaste}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="overlay" onclick={(e) => e.target === e.currentTarget && closePasteModal(true)}>
+    <div
+      class="modal-card modal-paste"
+      bind:this={pasteDialogEl}
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="paste-contacts-title"
+    >
+      <div class="modal-header">
+        <div>
+          <h2 id="paste-contacts-title" class="modal-title">{t('pasteRows')}</h2>
+          <p class="modal-desc">{active ? t('pasteHelp') : t('pasteHelpNoTemplate')}</p>
+        </div>
+        <button class="modal-close" type="button" onclick={() => closePasteModal(true)} aria-label={t('close')}>
+          <Icon name="x" size={16} />
+        </button>
+      </div>
+      <div class="modal-body">
+        {#if pasteError}
+          <div class="inline-alert warning">
+            <Icon name="alert" size={15} />
+            <span>{pasteError}</span>
+          </div>
+        {/if}
+        <textarea
+          bind:this={pasteEl}
+          class="input mono"
+          rows="6"
+          bind:value={pasteText}
+          placeholder={t('pastePlaceholder')}
+          oninput={() => (pasteError = '')}
+        ></textarea>
+      </div>
+      <div class="modal-footer cmodal-footer">
+        <button class="btn ghost sm" type="button" onclick={() => closePasteModal(true)}>
+          {t('cancel')}
+        </button>
+        <button
+          class="btn primary sm"
+          type="button"
+          onclick={addPasted}
+          disabled={!pasteText.trim()}
+        >
+          {t('addContactsAction')}
+        </button>
+      </div>
+    </div>
+  </div>
 {/if}
 
 {#if editingContact}
