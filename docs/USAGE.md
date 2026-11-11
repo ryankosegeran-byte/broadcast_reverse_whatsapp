@@ -11,12 +11,13 @@ Tidak ada backend. Tidak ada pengiriman otomatis.
 
 1. Buat template (**New template**).
 2. Tulis pesan. Pakai bilah format untuk `*tebal*`, `_miring_`, `~coret~`, `` `kode` ``, serta tombol menu emoji (`😊`) untuk menyisipkan emoji, dan pakai `{{nama}}` untuk nama kontak serta `{{variabel}}` lain sesuai kebutuhan.
-3. Isi nilai global (dipakai kalau kontak tidak punya nilai sendiri).
-4. Tambah penerima: tempel baris atau tambah satu per satu.
-5. Klik atau fokuskan baris untuk melihat pratinjau pesan, lalu klik **Open WhatsApp**.
-6. Di HP (layar `<= 760px`), app memakai viewport terkunci (`100dvh`) dengan 4 tab di bar bawah (**Template**, **Susun**, **Pratinjau**, **Kirim**) dan menu utilitas (**Bahasa**, **Tema**, **Ekspor**, **Impor**, **Bantuan**) di tombol **Menu** kanan atas. Di mode **Kirim**, tersedia tampilan **Daftar** (kartu penuh tanpa scroll menyamping) dan **Fokus** (kirim satu per satu dengan pratinjau langsung).
-7. WhatsApp terbuka dengan teks terisi → **tekan Send sendiri**.
-8. Penghapusan template atau kontak dikonfirmasi langsung di tempat (tekan `Escape` atau **Cancel** untuk membatalkan).
+3. Atur variabel template (nama tampilan dan nilai bawaan / global) di panel **Variables**.
+4. Tambah penerima: impor file CSV/VCF, tempel baris, atau tambah satu per satu, lalu beri label bila perlu.
+5. Saring penerima lewat chip label atau pencarian, dan centang baris tertentu jika hanya ingin mengirim ke subset kontak.
+6. Klik atau fokuskan baris untuk melihat pratinjau pesan, lalu klik **Open WhatsApp**.
+7. Di HP (layar `<= 760px`), app memakai viewport terkunci (`100dvh`) dengan 4 tab di bar bawah (**Template**, **Susun**, **Pratinjau**, **Kirim**) dan menu utilitas (**Bahasa**, **Tema**, **Ekspor**, **Impor**, **Impor CSV / VCF**, **Bantuan**) di tombol **Menu** kanan atas. Di mode **Kirim**, tersedia tampilan **Daftar** (kartu penuh tanpa scroll menyamping) dan **Fokus** (kirim satu per satu dengan pratinjau langsung).
+8. WhatsApp terbuka dengan teks terisi → **tekan Send sendiri**.
+9. Penghapusan template atau kontak dikonfirmasi langsung di tempat (tekan `Escape` atau **Cancel** untuk membatalkan).
 
 ---
 
@@ -24,10 +25,15 @@ Tidak ada backend. Tidak ada pengiriman otomatis.
 
 - Sintaks: `{{nama}}`, `{{invoice}}`, `{{total}}`, `{{jatuh_tempo}}`.
 - Nama variabel bebas: huruf, angka, `_`, `.`, `-`.
-- Variabel dibuat dengan **menulis `{{nama_var}}` di badan pesan**, atau lewat kotak **Add variable** di bagian Variables (isi nama, klik Add → token disisipkan di posisi kursor).
-- Variabel terdeteksi otomatis dari body template. Hapus dari body → hilang dari form.
-- `{{nama}}` **bawaan**: selalu diisi dari nama kontak, tidak perlu didefinisikan.
-- Urutan nilai: nilai khusus kontak → nama kontak (untuk `{{nama}}`) → nilai global → kosong.
+- Variabel dibuat dengan **menulis `{{nama_var}}` di badan pesan**, atau lewat kotak **Add variable** di bagian Variables (isi nama, klik Add → mendaftarkan variabel ke template dan menyisipkan token di posisi kursor).
+- Variabel di template = gabungan variabel yang terdaftar di `vars[]` dan token `{{...}}` yang ada di body template.
+- **Manajer variabel per template**: setiap variabel tampil dalam satu baris berisi:
+  - **Key** (read-only, sesuai token `{{key}}`).
+  - **Display name** (nama tampilan opsional — dipakai sebagai judul kolom di tabel penerima dan daftar pemetaan impor CSV/VCF).
+  - **Default** (tersimpan sebagai `globals[key]` — dipakai bila kontak tidak punya nilai khusus untuk template aktif).
+  - **Remove variable** (tombol hapus — menghapus definisi dari template dan sekaligus menghapus semua token `{{key}}` dari body pesan).
+- `{{nama}}` **bawaan**: selalu diisi dari nama kontak, tidak masuk ke manajer variabel.
+- Urutan nilai: nilai khusus kontak → nama kontak (untuk `{{nama}}`) → nilai bawaan/global → kosong.
 
 Contoh body:
 
@@ -82,9 +88,27 @@ Contoh:
 6281234567890|SITI|INV-202611-00490|42.000|10 November 2026
 ```
 
+### Import CSV / VCF
+
+Klik **Import CSV / VCF** di header panel penerima (atau di tombol **Menu** pada tampilan HP):
+
+- Pilih atau seret file `.csv` (pemisah `,`, `;`, atau tab dengan dukungan tanda kutip RFC 4180) maupun `.vcf` (ekspor kontak dari HP; mendukung `TEL`, `FN`/`N`, serta baris terlipat).
+- Header kolom ditebak otomatis (`phone`/`nomor`/`hp`/`wa` → Nomor, `name`/`nama`/`fn` → Nama, `label`/`tag`/`grup`/`kategori` → Label, serta nama/key variabel template aktif).
+- Sesuaikan pemetaan tiap kolom (**Phone**, **Name**, **Label**, variabel template, atau **Ignore**) sambil melihat pratinjau 10 baris pertama. Kolom **Phone** wajib dipetakan agar tombol **Import** aktif.
+- **Banyak label dalam satu sel**: pisahkan dengan `;` atau `|` (contoh: `VIP;Jatuh Tempo` atau `VIP|Lunas`). Koma tidak dipakai sebagai pemisah label agar tidak bentrok dengan pemisah CSV.
+- **Aturan dedup & gabung**: kontak dicocokkan lewat nomor ternormalisasi. Bila nomor sudah ada, nama dan nilai variabel lokal tetap dipertahankan (hanya bagian yang kosong diisi dari file), label digabung (union tanpa duplikat), dan `sentAt` mengambil waktu terbaru. Nomor baru ditambahkan, sedangkan baris bernomor tidak valid dilewati dengan ringkasan hasil (`Ditambah`, `Digabung`, `Dilewati`).
+
 ---
 
-## 4. Badge dan status
+## 4. Label, filter, dan seleksi
+
+- **Multi-label per kontak**: setiap kontak dapat memiliki lebih dari satu label bebas (contoh: `VIP`, `Jatuh Tempo`). Tambah atau hapus chip label langsung di kolom **Labels** pada tabel maupun kartu kontak mobile; input menyediakan saran otomatis dari label yang sudah ada. Warna chip dihitung otomatis dari nama label.
+- **Filter label (OR)**: bila ada minimal satu label pada kontak, bar filter label muncul di atas daftar penerima. Mengklik satu atau lebih chip label menampilkan kontak yang memiliki **salah satu** label yang dipilih (semantik OR). Klik **Clear** atau nonaktifkan chip untuk menampilkan semua kontak kembali. Filter label dapat digabung dengan kotak pencarian nama/nomor.
+- **Seleksi & working set**: setiap baris tabel dan kartu mobile memiliki kotak centang, disertai centang header (**Select all** / **Clear selection**) yang berlaku pada daftar yang sedang tampil (setelah filter + pencarian). Bila ada satu atau lebih kontak yang dicentang, ringkasan penerima serta alur **Kirim** / mode **Fokus** bekerja pada subset yang dicentang (pilihan bersifat sementara di sesi UI dan tidak ikut disimpan).
+
+---
+
+## 5. Badge dan status
 
 - Kolom nilai kosong diberi garis batas kuning/amber lembut. Pesan tetap bisa dikirim, variabelnya jadi kosong.
 - Badge **Opened** (atau **Dibuka** di mode Indonesia) di kolom nomor = nomor itu sudah dibuka di WhatsApp untuk template aktif. Ini penanda lokal, **bukan** bukti pesan terkirim.
@@ -92,7 +116,7 @@ Contoh:
 
 ---
 
-## 5. Kirim
+## 6. Kirim
 
 Klik **Open WhatsApp** → tab baru berisi:
 
@@ -107,7 +131,7 @@ https://api.whatsapp.com/send?phone=6289698129722&text=<pesan ter-encode>
 
 ---
 
-## 6. Penyimpanan
+## 7. Penyimpanan
 
 - Data disimpan di `localStorage` browser: key `wa-broadcast:v1`.
 - Bahasa (`wa-broadcast:lang`), tema tampilan (`wa-broadcast:theme`), dan riwayat emoji terakhir (`wa-broadcast:recent-emojis`) disimpan terpisah per perangkat.
@@ -119,12 +143,12 @@ Pindah perangkat: pakai **Export** lalu **Import**.
 
 ---
 
-## 7. Export / Import
+## 8. Export / Import
 
-**Export** membuat file `wa-broadcast-backup-YYYY-MM-DD.json` berisi semua template dan kontak.
+**Export** membuat file `wa-broadcast-backup-YYYY-MM-DD.json` berformat `schemaVersion: 2` yang berisi semua template (termasuk definisi variabel `vars` dan nilai bawaan `globals`) serta semua kontak (termasuk `labels`, `values`, dan `sentAt`).
 Preferensi bahasa dan tema tidak ikut.
 
-**Import** memvalidasi file dulu, lalu menawarkan dua mode:
+**Import** memvalidasi file dulu (menampilkan jumlah template, kontak, dan label yang ditemukan), lalu menawarkan dua mode. File cadangan `schemaVersion: 1` lama tetap bisa diimpor dan otomatis diupgrade dengan `vars: []` dan `labels: []`:
 
 | Mode | Perilaku |
 |---|---|
@@ -133,14 +157,14 @@ Preferensi bahasa dan tema tidak ikut.
 
 Aturan merge:
 
-- Template: lokal menang saat `id` atau nama sama.
-- Kontak: lokal menang saat nomor sama; `name` dan nilai yang kosong diisi dari file.
+- Template: lokal menang saat `id` atau nama sama; `vars` digabung per key (mengisi nama tampilan yang masih kosong dan menambah key baru).
+- Kontak: lokal menang saat nomor sama; `name` dan nilai yang kosong diisi dari file, `labels` digabung (union tanpa duplikat).
 - Global: hanya key yang belum ada.
 - Bahasa dan tema perangkat tidak berubah.
 
 ---
 
-## 8. Bahasa dan tema
+## 9. Bahasa dan tema
 
 - Default English dan tema terang (light).
 - Switch **EN | ID** di header → English / Indonesia.
@@ -150,17 +174,19 @@ Aturan merge:
 
 ---
 
-## 9. Batasan yang perlu diketahui
+## 10. Batasan yang perlu diketahui
 
 - Tidak bisa kirim otomatis / tanpa klik.
 - Tidak ada sinkron cloud, akun, atau statistik terkirim.
 - Tidak bisa lampirkan gambar/file lewat link `text=`.
 - Nomor harus nomor WhatsApp aktif. Link akan menampilkan "nomor tidak terdaftar" kalau salah.
 - Teks sangat panjang bisa dipotong WhatsApp. App memberi peringatan bila URL > 8000 karakter.
+- Impor CSV / VCF mewajibkan satu kolom nomor yang dipetakan; baris tanpa nomor valid akan dilewati.
+- Label bersifat teks bebas per kontak (tidak ada daftar grup/registry terpisah; mengubah nama label dilakukan di masing-masing kontak).
 
 ---
 
-## 10. Untuk pengembang
+## 11. Untuk pengembang
 
 ```bash
 npm install

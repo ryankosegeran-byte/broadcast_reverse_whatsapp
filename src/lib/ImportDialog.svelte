@@ -41,7 +41,7 @@
     <div class="modal-header">
       <div>
         <h2 id="import-dialog-title" class="modal-title">{t('importTitle')}</h2>
-        <p class="modal-desc">{t('importFound', { t: info.templates, c: info.contacts })}</p>
+        <p class="modal-desc">{t('importFound', { t: info.templates, c: info.contacts, l: info.labels ?? 0 })}</p>
       </div>
       <button class="modal-close" type="button" onclick={onCancel} aria-label={t('close')}>
         <Icon name="x" size={16} />

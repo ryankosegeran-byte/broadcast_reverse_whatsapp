@@ -1,5 +1,5 @@
 import { normalizePhone, isValidPhone } from './wa.js'
-import { mergeContacts } from './contacts.js'
+import { mergeContacts, uniqueLabels } from './contacts.js'
 
 export const SCHEMA_VERSION = 2
 export const DATA_KEY = 'wa-broadcast:v1'
@@ -115,7 +115,15 @@ export function validateState(raw) {
     if (!isValidPhone(normalizePhone(c?.phone))) return { ok: false, error: 'phone' }
   }
   const data = migrate(raw)
-  return { ok: true, data, counts: { templates: data.templates.length, contacts: data.contacts.length } }
+  return {
+    ok: true,
+    data,
+    counts: {
+      templates: data.templates.length,
+      contacts: data.contacts.length,
+      labels: uniqueLabels(data.contacts).length,
+    },
+  }
 }
 
 export function mergeStates(local, incoming) {

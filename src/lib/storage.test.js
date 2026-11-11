@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { migrate, mergeStates, emptyState } from './storage.js'
+import { migrate, mergeStates, emptyState, validateState } from './storage.js'
 
 test('migrate fills missing fields and drops invalid phones', () => {
   const state = migrate({
@@ -97,4 +97,25 @@ test('mergeStates merges template vars and unions contact labels', () => {
 
   assert.deepEqual(local.templates[0].vars, [{ key: 'x', label: 'Amount' }, { key: 'y', label: 'Note' }])
   assert.deepEqual(local.contacts[0].labels, ['VIP', 'Lama'])
+})
+
+test('validateState returns template, contact, and unique label counts for v1 and v2', () => {
+  const v1 = validateState({
+    templates: [{ id: 't1', name: 'A', body: '{{x}}' }],
+    contacts: [{ phone: '0811111111', name: 'Budi' }],
+  })
+  assert.equal(v1.ok, true)
+  assert.equal(v1.data.schemaVersion, 2)
+  assert.deepEqual(v1.counts, { templates: 1, contacts: 1, labels: 0 })
+
+  const v2 = validateState({
+    schemaVersion: 2,
+    templates: [{ id: 't1', name: 'A', body: '{{x}}', vars: [{ key: 'x', label: 'Amount' }], globals: { x: '10' } }],
+    contacts: [
+      { phone: '6281111111', name: 'A', labels: ['VIP', 'Jatuh Tempo'] },
+      { phone: '6282222222', name: 'B', labels: ['VIP'] },
+    ],
+  })
+  assert.equal(v2.ok, true)
+  assert.deepEqual(v2.counts, { templates: 1, contacts: 2, labels: 2 })
 })

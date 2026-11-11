@@ -652,6 +652,17 @@
           type="button"
           onclick={() => {
             showMobileMenu = false
+            showContactImport = true
+          }}
+        >
+          <Icon name="users" size={16} />
+          <span>{t('importContacts')}</span>
+        </button>
+        <button
+          class="mobile-menu-item"
+          type="button"
+          onclick={() => {
+            showMobileMenu = false
             showHelp = true
           }}
         >
