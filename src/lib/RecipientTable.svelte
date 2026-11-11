@@ -592,7 +592,7 @@
           {#if template}
             <Preview
               text={render(template.body, focusContact, template)}
-              emptyLabel={t('previewEmpty')}
+              emptyLabel={t('previewBodyEmpty')}
               contactLabel=""
               {t}
             />
@@ -748,7 +748,7 @@
               <div class="rcard-preview">
                 <Preview
                   text={render(template.body, contact, template)}
-                  emptyLabel={t('previewEmpty')}
+                  emptyLabel={t('previewBodyEmpty')}
                   contactLabel=""
                   {t}
                 />

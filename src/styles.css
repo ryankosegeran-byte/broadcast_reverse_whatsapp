@@ -630,7 +630,7 @@ h2 {
 /* Workspace grid */
 .workspace {
   display: grid;
-  grid-template-columns: clamp(256px, 24vw, 316px) minmax(0, 1fr) clamp(256px, 24vw, 336px);
+  grid-template-columns: clamp(256px, 24vw, 316px) minmax(0, 1fr) clamp(284px, 26.5vw, 372px);
   gap: 12px;
   align-items: start;
 }
@@ -643,7 +643,7 @@ h2 {
   display: grid;
   gap: 8px;
   min-width: 0;
-  align-items: start;
+  align-content: start;
 }
 
 .panel {
@@ -670,7 +670,7 @@ h2 {
 /* Sidebar */
 .sidebar {
   min-width: 0;
-  padding: 9px 12px;
+  padding: 10px 12px;
 }
 
 .sidebar .panel-head {
@@ -1425,15 +1425,18 @@ td.col-labels {
   position: sticky;
   top: var(--space-4);
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .preview-shell {
-  display: grid;
-  gap: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
 }
 
 .preview-toolbar {
+  flex: none;
   display: grid;
   gap: var(--space-2);
 }
@@ -1444,20 +1447,6 @@ td.col-labels {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-2);
-}
-
-.preview-meta {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-
-.preview-meta .badge {
-  display: inline-block;
-  max-width: 100%;
-  line-height: 22px;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .copy-btn[data-copy-state='copied'] {
@@ -1476,27 +1465,96 @@ td.col-labels {
 }
 
 .wa-stage {
+  display: flex;
+  flex-direction: column;
   background: var(--wa-stage);
   border: 1px solid var(--border);
   border-radius: calc(var(--radius-panel) - 8px);
-  padding: var(--space-4);
   max-height: 66vh;
-  overflow: auto;
+  overflow: hidden;
+}
+
+.wa-chat-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: color-mix(in oklab, var(--surface-muted) 72%, var(--wa-stage));
+}
+
+.wa-chat-avatar {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  display: grid;
+  place-items: center;
+  background: var(--accent-subtle);
+  border: 1px solid color-mix(in oklab, var(--accent) 34%, var(--border));
+  color: color-mix(in oklab, var(--accent-strong) 88%, var(--foreground));
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+:root[data-theme='dark'] .wa-chat-avatar {
+  color: var(--accent-strong);
+}
+
+.wa-chat-meta {
+  min-width: 0;
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.wa-chat-name {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wa-chat-tag {
+  flex: none;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.wa-chat-body {
+  flex: 0 1 auto;
+  min-height: 140px;
+  padding: 12px;
+  display: grid;
+  align-content: start;
+  overflow-y: auto;
 }
 
 .wa-bubble {
+  justify-self: end;
+  width: fit-content;
+  min-width: 112px;
+  max-width: min(88%, 296px);
   background: var(--wa-bubble);
   border: 1px solid var(--wa-bubble-border);
-  border-radius: 14px 4px 14px 14px;
-  padding: 12px 14px 10px;
+  border-radius: 12px 3px 12px 12px;
+  padding: 9px 12px 7px;
   box-shadow: var(--shadow-resting);
   display: grid;
-  gap: var(--space-2);
+  gap: 4px;
 }
 
 .wa-content {
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 0.875rem;
+  line-height: 1.44;
   color: var(--foreground);
   overflow-wrap: anywhere;
 }
@@ -1517,7 +1575,7 @@ td.col-labels {
 
 .wa-mono {
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   padding: 1px 5px;
   border-radius: 5px;
   background: color-mix(in oklab, var(--foreground) 7%, transparent);
@@ -1534,7 +1592,7 @@ td.col-labels {
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  font-size: 0.7rem;
+  font-size: 0.6875rem;
   color: var(--text-muted);
 }
 
@@ -1544,7 +1602,10 @@ td.col-labels {
 }
 
 .wa-empty {
-  padding: var(--space-4) 0;
+  place-self: center;
+  text-align: center;
+  padding: var(--space-3) var(--space-2);
+  max-width: 24ch;
 }
 
 /* Badges */
@@ -2450,6 +2511,10 @@ td.actions {
   max-height: 44vh;
 }
 
+.cmodal-preview-col .wa-chat-body {
+  min-height: 112px;
+}
+
 .modal-footer.cmodal-footer {
   display: flex;
   align-items: center;
@@ -2528,6 +2593,7 @@ td.actions {
     flex: 1 1 0;
     min-height: 0;
     height: 100%;
+    grid-template-rows: minmax(0, 1fr);
     align-items: stretch;
   }
 
@@ -2536,6 +2602,7 @@ td.actions {
     min-height: 0;
     display: flex;
     flex-direction: column;
+    align-items: stretch;
   }
 
   .sidebar {
@@ -2634,7 +2701,9 @@ td.actions {
 
   .preview-panel {
     position: static;
-    height: 100%;
+    align-self: start;
+    height: auto;
+    max-height: 100%;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -2646,18 +2715,15 @@ td.actions {
   }
 
   .preview-shell {
-    flex: 1 1 0;
+    flex: 0 1 auto;
     min-height: 0;
     gap: 8px;
-    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .preview-panel .wa-stage {
+    flex: 0 1 auto;
     min-height: 0;
     max-height: none;
-    padding: 12px;
-    display: grid;
-    align-content: start;
   }
 
   .empty-panel {
@@ -2706,7 +2772,15 @@ td.actions {
 
 @media (min-width: 761px) and (max-width: 979px) and (min-height: 540px) {
   .workspace {
-    grid-template-rows: minmax(0, 1.12fr) minmax(0, 0.88fr);
+    grid-template-rows: minmax(220px, 1fr) auto;
+  }
+
+  .preview-panel {
+    max-height: min(42dvh, 400px);
+  }
+
+  .preview-panel .wa-chat-body {
+    min-height: 108px;
   }
 }
 
@@ -3195,6 +3269,15 @@ td.actions {
 
   .rcard-preview .wa-stage {
     max-height: 220px;
+  }
+
+  .rcard-preview .wa-chat-head {
+    display: none;
+  }
+
+  .rcard-preview .wa-chat-body,
+  .focus-preview .wa-chat-body {
+    min-height: 84px;
     padding: var(--space-3);
   }
 
@@ -3246,7 +3329,6 @@ td.actions {
 
   .focus-preview .wa-stage {
     max-height: 240px;
-    padding: var(--space-3);
   }
 
   .focus-actions {

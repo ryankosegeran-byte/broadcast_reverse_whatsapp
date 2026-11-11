@@ -71,49 +71,62 @@
         <span class="copy-label">{copyLabel}</span>
       </button>
     </div>
-    {#if contactLabel}
-      <div class="preview-meta">
-        <span class="badge neutral sm">{t('previewFor', { name: contactLabel })}</span>
-      </div>
-    {/if}
   </div>
 
   <div class="wa-stage">
-    {#if text}
-      <div class="wa-bubble">
-        <div class="wa-content">
-          {#each lines as line, lineIdx}
-            {#if line === ''}
-              <div class="wa-blank"></div>
-            {:else}
-              <p class="wa-line">
-                {#each tokenizeWaLine(line) as seg}
-                  {#if seg.type === 'bold'}
-                    <strong class="wa-bold">{seg.value}</strong>
-                  {:else if seg.type === 'italic'}
-                    <em>{seg.value}</em>
-                  {:else if seg.type === 'strike'}
-                    <s>{seg.value}</s>
-                  {:else if seg.type === 'mono'}
-                    <code class="wa-mono">{seg.value}</code>
-                  {:else if seg.type === 'link'}
-                    <span class="wa-link">{seg.value}</span>
-                  {:else}
-                    {seg.value}
-                  {/if}
-                {/each}
-              </p>
-            {/if}
-          {/each}
-        </div>
-        <div class="wa-foot" aria-hidden="true">
-          <span class="tabular">{t('charsCount', { n: text.length })}</span>
-          <span class="wa-ticks">✓✓</span>
-        </div>
+    <div class="wa-chat-head" aria-hidden="true">
+      <span class="wa-chat-avatar">
+        {#if contactLabel}
+          {contactLabel.trim().charAt(0).toUpperCase()}
+        {:else}
+          <Icon name="wa" size={13} />
+        {/if}
+      </span>
+      <div class="wa-chat-meta">
+        <span class="wa-chat-name">{contactLabel || 'WhatsApp'}</span>
+        {#if contactLabel}
+          <span class="wa-chat-tag">WhatsApp</span>
+        {/if}
       </div>
-    {:else}
-      <p class="muted small wa-empty">{emptyLabel}</p>
-    {/if}
+    </div>
+
+    <div class="wa-chat-body">
+      {#if text}
+        <div class="wa-bubble">
+          <div class="wa-content">
+            {#each lines as line, lineIdx}
+              {#if line === ''}
+                <div class="wa-blank"></div>
+              {:else}
+                <p class="wa-line">
+                  {#each tokenizeWaLine(line) as seg}
+                    {#if seg.type === 'bold'}
+                      <strong class="wa-bold">{seg.value}</strong>
+                    {:else if seg.type === 'italic'}
+                      <em>{seg.value}</em>
+                    {:else if seg.type === 'strike'}
+                      <s>{seg.value}</s>
+                    {:else if seg.type === 'mono'}
+                      <code class="wa-mono">{seg.value}</code>
+                    {:else if seg.type === 'link'}
+                      <span class="wa-link">{seg.value}</span>
+                    {:else}
+                      {seg.value}
+                    {/if}
+                  {/each}
+                </p>
+              {/if}
+            {/each}
+          </div>
+          <div class="wa-foot" aria-hidden="true">
+            <span class="tabular">{t('charsCount', { n: text.length })}</span>
+            <span class="wa-ticks">✓✓</span>
+          </div>
+        </div>
+      {:else}
+        <p class="muted small wa-empty">{emptyLabel}</p>
+      {/if}
+    </div>
   </div>
 </div>
 

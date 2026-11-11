@@ -398,7 +398,7 @@
       <aside class="cmodal-preview-col">
         <Preview
           text={template ? render(template.body, contact, template) : ''}
-          emptyLabel={template ? t('previewEmpty') : t('noTemplatesDesc')}
+          emptyLabel={template ? t('previewBodyEmpty') : t('noTemplatesDesc')}
           contactLabel={template ? (contact.name || contact.phone) : ''}
           {t}
         />

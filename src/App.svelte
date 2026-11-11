@@ -1182,7 +1182,7 @@
         {/if}
         <Preview
           text={previewText}
-          emptyLabel={t('previewEmpty')}
+          emptyLabel={active ? t('previewBodyEmpty') : t('previewEmpty')}
           contactLabel={previewContact ? (previewContact.name || previewContact.phone) : ''}
           {t}
         />
