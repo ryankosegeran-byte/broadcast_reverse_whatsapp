@@ -1574,21 +1574,33 @@ td.col-labels {
 }
 
 .recipients-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
+  align-items: stretch;
   gap: var(--space-2);
   margin-bottom: var(--space-3);
 }
 
-.recipients-actions {
+.recipients-title-row {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.recipients-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
 .recipients-actions .btn {
   min-height: 28px;
-  padding: 0 9px;
-  font-size: var(--text-xs);
-  gap: 5px;
+  padding: 0 5px;
+  font-size: 11.5px;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .recipients .subpanel {
@@ -1754,6 +1766,12 @@ td.col-labels {
   gap: 4px;
   flex: none;
   margin-left: auto;
+}
+
+.clist-actions .btn.xs {
+  min-height: 24px;
+  padding: 0 7px;
+  font-size: 11.5px;
 }
 
 .search-icon {
@@ -2569,8 +2587,7 @@ td.actions {
 
   .page[data-mobile-tab='preview'] .preview-panel,
   .page[data-mobile-tab='compose'] .empty-panel,
-  .page[data-mobile-tab='preview'] .empty-panel,
-  .page[data-mobile-tab='send'] .empty-panel {
+  .page[data-mobile-tab='preview'] .empty-panel {
     display: grid;
     align-content: start;
   }
@@ -2582,6 +2599,11 @@ td.actions {
     padding-bottom: var(--space-3);
     margin-bottom: var(--space-3);
     border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .mobile-tpl-bar.empty-tpl {
+    align-items: center;
+    justify-content: space-between;
   }
 
   .mobile-tpl-picker,
@@ -2646,9 +2668,9 @@ td.actions {
 
   .recipients-actions .btn {
     min-height: var(--control-height-sm);
-    padding: 0 var(--space-3);
-    font-size: var(--text-sm);
-    gap: var(--space-2);
+    padding: 0 8px;
+    font-size: var(--text-xs);
+    gap: 5px;
   }
 
   .recipients .add-grid {

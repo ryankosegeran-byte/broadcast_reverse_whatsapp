@@ -10,7 +10,7 @@ export function detectVariables(body) {
 
 /** First non-empty wins: per-contact value, contact name (for `nama`), template globals. */
 export function resolve(key, contact, template) {
-  const own = contact?.values?.[template.id]?.[key]
+  const own = template?.id ? contact?.values?.[template.id]?.[key] : undefined
   if (own !== undefined && own !== null && own !== '') return String(own)
   if (key === 'nama' && contact?.name) return contact.name
   const global = template?.globals?.[key]

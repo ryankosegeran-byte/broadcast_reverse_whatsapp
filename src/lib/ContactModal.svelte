@@ -191,15 +191,17 @@
           <h2 id="contact-modal-title" class="modal-title">
             {contact.name || contact.phone}
           </h2>
-          {#if isSent}
-            <span class="badge success sm">
-              <span class="badge-dot" aria-hidden="true"></span>
-              {t('opened')}
-            </span>
-          {:else if missingKeys.length}
-            <span class="badge warn sm">{t('missingCount', { n: missingKeys.length })}</span>
-          {:else}
-            <span class="badge neutral sm">{t('readyBadge')}</span>
+          {#if template}
+            {#if isSent}
+              <span class="badge success sm">
+                <span class="badge-dot" aria-hidden="true"></span>
+                {t('opened')}
+              </span>
+            {:else if missingKeys.length}
+              <span class="badge warn sm">{t('missingCount', { n: missingKeys.length })}</span>
+            {:else}
+              <span class="badge neutral sm">{t('readyBadge')}</span>
+            {/if}
           {/if}
         </div>
         <p class="modal-desc mono">{contact.phone}</p>
@@ -348,7 +350,9 @@
             {/if}
           </header>
 
-          {#if vars.length === 0}
+          {#if !template}
+            <p class="hint">{t('contactNoTemplateYet')}</p>
+          {:else if vars.length === 0}
             <p class="hint">{t('contactNoExtraVars')}</p>
           {:else}
             <div class="cmodal-vars">
@@ -394,8 +398,8 @@
       <aside class="cmodal-preview-col">
         <Preview
           text={template ? render(template.body, contact, template) : ''}
-          emptyLabel={t('previewEmpty')}
-          contactLabel={contact.name || contact.phone}
+          emptyLabel={template ? t('previewEmpty') : t('noTemplatesDesc')}
+          contactLabel={template ? (contact.name || contact.phone) : ''}
           {t}
         />
         {#if missingKeys.length}

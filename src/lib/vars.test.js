@@ -43,6 +43,12 @@ test('varLabel falls back to the key', () => {
   assert.equal(varLabel(tpl, 'other'), 'other')
 })
 
+test('resolves and lists keys safely when template is null', () => {
+  assert.equal(resolve('nama', contact, null), 'FENDY')
+  assert.equal(resolve('total', contact, null), '')
+  assert.deepEqual(templateVarKeys(null), [])
+})
+
 test('templateVarKeys ignores malformed declared vars and keeps body order stable', () => {
   const tpl = {
     body: 'Hi {{nama}}, {{b}} then {{a}} then {{b}}',

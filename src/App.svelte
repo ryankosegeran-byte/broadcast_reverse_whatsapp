@@ -771,9 +771,9 @@
         {/if}
       </aside>
 
-      {#if active}
-        <section class="panel recipients" aria-label={t('recipients')}>
-          <div class="mobile-tpl-bar">
+      <section class="panel recipients" aria-label={t('recipients')}>
+        <div class="mobile-tpl-bar" class:empty-tpl={!active}>
+          {#if active}
             <label class="mobile-tpl-picker">
               <span class="mobile-tpl-caption">{t('activeTemplate')}</span>
               <select
@@ -795,133 +795,148 @@
               <Icon name="edit" size={14} />
               <span>{t('navCompose')}</span>
             </button>
-          </div>
+          {:else}
+            <span class="mobile-tpl-caption">{t('noTemplates')}</span>
+            <button class="btn primary sm" type="button" onclick={newTemplate}>
+              <Icon name="plus" size={14} />
+              <span>{t('newTemplate')}</span>
+            </button>
+          {/if}
+        </div>
 
-          <div class="panel-head recipients-head">
+        <div class="panel-head recipients-head">
+          <div class="recipients-title-row">
             <h2>{t('recipients')}</h2>
-            <div class="recipients-actions">
-              <button
-                class="btn sm secondary"
-                type="button"
-                onclick={() => (showContactImport = true)}
-              >
-                <Icon name="upload" size={14} />
-                <span>{t('importContacts')}</span>
-              </button>
-              <button
-                class="btn sm {showPaste ? 'active-toggle' : 'secondary'}"
-                type="button"
-                aria-expanded={showPaste}
-                onclick={togglePaste}
-              >
-                <Icon name="clipboard" size={14} />
-                <span>{t('pasteRows')}</span>
-              </button>
-              <button
-                class="btn sm {showAdd ? 'active-toggle' : 'primary'}"
-                type="button"
-                aria-expanded={showAdd}
-                onclick={toggleAdd}
-              >
-                <Icon name="plus" size={14} />
-                <span>{t('addContact')}</span>
-              </button>
-            </div>
+            <span class="badge neutral sm tabular">{data.contacts.length}</span>
           </div>
+          <div class="recipients-actions" role="group" aria-label={t('recipients')}>
+            <button
+              class="btn sm {showAdd ? 'active-toggle' : 'primary'}"
+              type="button"
+              aria-expanded={showAdd}
+              aria-label={t('addContact')}
+              title={t('addContact')}
+              onclick={toggleAdd}
+            >
+              <Icon name="plus" size={12} />
+              <span>{t('addContactShort')}</span>
+            </button>
+            <button
+              class="btn sm {showPaste ? 'active-toggle' : 'secondary'}"
+              type="button"
+              aria-expanded={showPaste}
+              aria-label={t('pasteRows')}
+              title={t('pasteRows')}
+              onclick={togglePaste}
+            >
+              <Icon name="clipboard" size={12} />
+              <span>{t('pasteRowsShort')}</span>
+            </button>
+            <button
+              class="btn sm secondary"
+              type="button"
+              aria-label={t('importContacts')}
+              title={t('importContacts')}
+              onclick={() => (showContactImport = true)}
+            >
+              <Icon name="upload" size={12} />
+              <span>{t('importContactsShort')}</span>
+            </button>
+          </div>
+        </div>
 
-          <div class="collapsible" data-open={showPaste ? 'true' : 'false'} inert={!showPaste}>
-            <div class="collapsible-inner">
-              <div class="subpanel">
-                <p class="hint">{t('pasteHelp')}</p>
-                <textarea
-                  class="input mono"
-                  rows="4"
-                  bind:value={pasteText}
-                  placeholder={t('pastePlaceholder')}
-                  disabled={!showPaste}
-                ></textarea>
-                <div class="row gap wrap">
-                  <button
-                    class="btn primary sm"
-                    type="button"
-                    onclick={addPasted}
-                    disabled={!showPaste || !pasteText.trim()}
-                  >
-                    {t('addContactsAction')}
-                  </button>
-                  <button class="btn ghost sm" type="button" onclick={() => (showPaste = false)}>
-                    {t('cancel')}
-                  </button>
-                </div>
+        <div class="collapsible" data-open={showPaste ? 'true' : 'false'} inert={!showPaste}>
+          <div class="collapsible-inner">
+            <div class="subpanel">
+              <p class="hint">{active ? t('pasteHelp') : t('pasteHelpNoTemplate')}</p>
+              <textarea
+                class="input mono"
+                rows="4"
+                bind:value={pasteText}
+                placeholder={t('pastePlaceholder')}
+                disabled={!showPaste}
+              ></textarea>
+              <div class="row gap wrap">
+                <button
+                  class="btn primary sm"
+                  type="button"
+                  onclick={addPasted}
+                  disabled={!showPaste || !pasteText.trim()}
+                >
+                  {t('addContactsAction')}
+                </button>
+                <button class="btn ghost sm" type="button" onclick={() => (showPaste = false)}>
+                  {t('cancel')}
+                </button>
               </div>
             </div>
           </div>
+        </div>
 
-          <div class="collapsible" data-open={showAdd ? 'true' : 'false'} inert={!showAdd}>
-            <div class="collapsible-inner">
-              <form class="subpanel" onsubmit={addManual}>
-                <div class="add-grid">
+        <div class="collapsible" data-open={showAdd ? 'true' : 'false'} inert={!showAdd}>
+          <div class="collapsible-inner">
+            <form class="subpanel" onsubmit={addManual}>
+              <div class="add-grid">
+                <label class="field">
+                  <span class="field-label">{t('phone')}</span>
+                  <input
+                    class="input"
+                    bind:value={form.phone}
+                    placeholder="0896..."
+                    required
+                    disabled={!showAdd}
+                  />
+                </label>
+                <label class="field">
+                  <span class="field-label">{t('name')}</span>
+                  <input
+                    class="input"
+                    bind:value={form.name}
+                    placeholder="-"
+                    disabled={!showAdd}
+                  />
+                </label>
+                {#each valueVars as v (v)}
                   <label class="field">
-                    <span class="field-label">{t('phone')}</span>
+                    <span class="field-label" title={v}>{varLabel(active, v)}</span>
                     <input
                       class="input"
-                      bind:value={form.phone}
-                      placeholder="0896..."
-                      required
-                      disabled={!showAdd}
-                    />
-                  </label>
-                  <label class="field">
-                    <span class="field-label">{t('name')}</span>
-                    <input
-                      class="input"
-                      bind:value={form.name}
+                      value={form.values[v] ?? ''}
                       placeholder="-"
                       disabled={!showAdd}
+                      oninput={(e) => (form.values[v] = e.currentTarget.value)}
                     />
                   </label>
-                  {#each valueVars as v (v)}
-                    <label class="field">
-                      <span class="field-label" title={v}>{varLabel(active, v)}</span>
-                      <input
-                        class="input"
-                        value={form.values[v] ?? ''}
-                        placeholder="-"
-                        disabled={!showAdd}
-                        oninput={(e) => (form.values[v] = e.currentTarget.value)}
-                      />
-                    </label>
-                  {/each}
-                </div>
-                <div class="row gap wrap">
-                  <button class="btn primary sm" type="submit" disabled={!showAdd}>{t('add')}</button>
-                  <button class="btn ghost sm" type="button" onclick={() => (showAdd = false)}>
-                    {t('cancel')}
-                  </button>
-                </div>
-              </form>
-            </div>
+                {/each}
+              </div>
+              <div class="row gap wrap">
+                <button class="btn primary sm" type="submit" disabled={!showAdd}>{t('add')}</button>
+                <button class="btn ghost sm" type="button" onclick={() => (showAdd = false)}>
+                  {t('cancel')}
+                </button>
+              </div>
+            </form>
           </div>
+        </div>
 
-          <RecipientTable
-            contacts={filteredContacts}
-            allContactIds={data.contacts.map((c) => c.id)}
-            totalCount={data.contacts.length}
-            template={active}
-            vars={valueVars}
-            {labelPool}
-            {labelFilter}
-            onToggleLabelFilter={toggleLabelFilter}
-            onClearLabelFilter={() => (labelFilter = [])}
-            focusedId={previewContact?.id ?? null}
-            {t}
-            onOpen={openWa}
-            onDelete={deleteContact}
-            onFocus={(contact) => (previewId = contact.id)}
-            onEdit={(contact, list) => openContactModal(contact, list)}
-          />
-        </section>
-      {/if}
+        <RecipientTable
+          contacts={filteredContacts}
+          allContactIds={data.contacts.map((c) => c.id)}
+          totalCount={data.contacts.length}
+          template={active}
+          vars={valueVars}
+          {labelPool}
+          {labelFilter}
+          onToggleLabelFilter={toggleLabelFilter}
+          onClearLabelFilter={() => (labelFilter = [])}
+          focusedId={previewContact?.id ?? null}
+          {t}
+          onOpen={openWa}
+          onDelete={deleteContact}
+          onFocus={(contact) => (previewId = contact.id)}
+          onEdit={(contact, list) => openContactModal(contact, list)}
+        />
+      </section>
     </div>
 
     {#if active}

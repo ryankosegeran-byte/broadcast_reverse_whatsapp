@@ -29,7 +29,7 @@
   let selected = $state([])
   let labelDraft = $state({})
 
-  let allVars = $derived(templateVarKeys(template))
+  let allVars = $derived(template ? templateVarKeys(template) : [])
 
   let shown = $derived(
     contacts.filter((c) => {
@@ -43,7 +43,7 @@
     selected.length ? shown.filter((c) => selected.includes(c.id)) : shown
   )
 
-  let sentCount = $derived(scope.filter((c) => c.sentAt?.[template.id]).length)
+  let sentCount = $derived(template ? scope.filter((c) => c.sentAt?.[template.id]).length : 0)
 
   let focusIndex = $derived.by(() => {
     if (!scope.length) return -1
@@ -90,11 +90,14 @@
   })
 
   function setValue(contact, key, value) {
+    if (!template) return
+    contact.values ??= {}
     contact.values[template.id] ??= {}
     contact.values[template.id][key] = value
   }
 
   function missingCountFor(contact) {
+    if (!template) return 0
     let count = 0
     for (const v of allVars) {
       if (!resolve(v, contact, template)) count++
@@ -190,30 +193,32 @@
   {#each labelPool as label (label)}<option value={label}></option>{/each}
 </datalist>
 
-<div class="table-tools">
-  <div class="search-field">
-    <span class="search-icon" aria-hidden="true">
-      <Icon name="search" size={15} />
-    </span>
-    <input
-      class="input search-input"
-      type="search"
-      placeholder={t('search')}
-      bind:value={query}
-      aria-label={t('search')}
-    />
-    {#if query}
-      <button
-        class="search-clear"
-        type="button"
-        aria-label={t('clearSearch')}
-        onclick={() => (query = '')}
-      >
-        <Icon name="x" size={13} />
-      </button>
-    {/if}
+{#if totalCount > 0}
+  <div class="table-tools">
+    <div class="search-field">
+      <span class="search-icon" aria-hidden="true">
+        <Icon name="search" size={15} />
+      </span>
+      <input
+        class="input search-input"
+        type="search"
+        placeholder={t('search')}
+        bind:value={query}
+        aria-label={t('search')}
+      />
+      {#if query}
+        <button
+          class="search-clear"
+          type="button"
+          aria-label={t('clearSearch')}
+          onclick={() => (query = '')}
+        >
+          <Icon name="x" size={13} />
+        </button>
+      {/if}
+    </div>
   </div>
-</div>
+{/if}
 
 {#if labelPool.length}
   <div class="label-filter">
@@ -282,12 +287,14 @@
         <span>{t('sendModeFocus')}</span>
       </button>
     </div>
-    <span class="badge {sentCount > 0 ? 'success' : 'neutral'} sm tabular">
-      {#if sentCount > 0}
-        <span class="badge-dot" aria-hidden="true"></span>
-      {/if}
-      {progressLabel}
-    </span>
+    {#if template}
+      <span class="badge {sentCount > 0 ? 'success' : 'neutral'} sm tabular">
+        {#if sentCount > 0}
+          <span class="badge-dot" aria-hidden="true"></span>
+        {/if}
+        {progressLabel}
+      </span>
+    {/if}
   </div>
 {/if}
 
@@ -296,7 +303,6 @@
     <div class="empty-icon" aria-hidden="true">
       <Icon name="users" size={20} />
     </div>
-    <h3>{t('recipients')}</h3>
     <p>{t('noContacts')}</p>
   </div>
 {:else if shown.length === 0}
@@ -318,7 +324,7 @@
 {:else}
   <div class="clist" role="list">
     {#each shown as contact (contact.id)}
-      {@const isSent = Boolean(contact.sentAt?.[template.id])}
+      {@const isSent = Boolean(template && contact.sentAt?.[template.id])}
       {@const missingCount = missingCountFor(contact)}
       {@const isFocused = focusedId === contact.id}
       <div
@@ -420,8 +426,9 @@
               <button
                 class="btn wa xs"
                 type="button"
+                disabled={!template}
                 aria-label={t('openWa')}
-                title={t('openWa')}
+                title={template ? t('openWa') : t('needTemplateToSend')}
                 onclick={(e) => {
                   e.stopPropagation()
                   onFocus?.(contact)
@@ -441,7 +448,7 @@
   <div class="mobile-send">
     {#if sendMode === 'focus'}
       {#if focusContact}
-      {@const isSent = Boolean(focusContact.sentAt?.[template.id])}
+      {@const isSent = Boolean(template && focusContact.sentAt?.[template.id])}
       {@const missing = missingCountFor(focusContact) > 0}
       <div class="focus-deck">
         <div class="focus-stepper">
@@ -458,15 +465,17 @@
             <span class="focus-counter tabular">
               {t('counterOf', { current: focusIndex + 1, total: scope.length })}
             </span>
-            {#if isSent}
-              <span class="badge success sm">
-                <span class="badge-dot" aria-hidden="true"></span>
-                {t('opened')}
-              </span>
-            {:else if missing}
-              <span class="badge warn sm">{t('missingVarsBadge')}</span>
-            {:else}
-              <span class="badge neutral sm">{t('readyBadge')}</span>
+            {#if template}
+              {#if isSent}
+                <span class="badge success sm">
+                  <span class="badge-dot" aria-hidden="true"></span>
+                  {t('opened')}
+                </span>
+              {:else if missing}
+                <span class="badge warn sm">{t('missingVarsBadge')}</span>
+              {:else}
+                <span class="badge neutral sm">{t('readyBadge')}</span>
+              {/if}
             {/if}
           </div>
           <button
@@ -582,22 +591,35 @@
         </article>
 
         <div class="focus-preview">
-          <Preview
-            text={render(template.body, focusContact, template)}
-            emptyLabel={t('previewEmpty')}
-            contactLabel=""
-            {t}
-          />
-          {#if missing}
-            <div class="inline-alert warning">
+          {#if template}
+            <Preview
+              text={render(template.body, focusContact, template)}
+              emptyLabel={t('previewEmpty')}
+              contactLabel=""
+              {t}
+            />
+            {#if missing}
+              <div class="inline-alert warning">
+                <Icon name="alert" size={15} />
+                <span>{t('emptyValueWarn')}</span>
+              </div>
+            {/if}
+          {:else}
+            <div class="inline-alert">
               <Icon name="alert" size={15} />
-              <span>{t('emptyValueWarn')}</span>
+              <span>{t('needTemplateToSend')}</span>
             </div>
           {/if}
         </div>
 
         <div class="focus-actions">
-          <button class="btn wa rcard-send" type="button" onclick={() => onOpen(focusContact)}>
+          <button
+            class="btn wa rcard-send"
+            type="button"
+            disabled={!template}
+            title={template ? t('openWa') : t('needTemplateToSend')}
+            onclick={() => onOpen(focusContact)}
+          >
             <Icon name="external" size={15} />
             <span>{isSent ? t('openAgainWa') : t('openWa')}</span>
           </button>
@@ -622,7 +644,7 @@
     {:else}
       <div class="rcard-list">
         {#each shown as contact, i (contact.id)}
-          {@const isSent = Boolean(contact.sentAt?.[template.id])}
+          {@const isSent = Boolean(template && contact.sentAt?.[template.id])}
           {@const missing = missingCountFor(contact) > 0}
           <article class="rcard" class:sent={isSent}>
             {#if confirmId === contact.id}
@@ -724,7 +746,7 @@
               />
             </div>
 
-            {#if expandedId === contact.id}
+            {#if expandedId === contact.id && template}
               <div class="rcard-preview">
                 <Preview
                   text={render(template.body, contact, template)}
@@ -742,7 +764,13 @@
             {/if}
 
             <div class="rcard-actions">
-              <button class="btn wa sm rcard-send" type="button" onclick={() => onOpen(contact)}>
+              <button
+                class="btn wa sm rcard-send"
+                type="button"
+                disabled={!template}
+                title={template ? t('openWa') : t('needTemplateToSend')}
+                onclick={() => onOpen(contact)}
+              >
                 <Icon name="external" size={14} />
                 <span>{t('openWa')}</span>
               </button>
@@ -754,17 +782,19 @@
                 <Icon name="edit" size={14} />
                 <span class="rcard-btn-label">{t('manageContact')}</span>
               </button>
-              <button
-                class="btn sm rcard-preview-btn {expandedId === contact.id ? 'active-toggle' : 'secondary'}"
-                type="button"
-                aria-expanded={expandedId === contact.id}
-                aria-label={expandedId === contact.id ? t('hidePreview') : t('showPreview')}
-                title={expandedId === contact.id ? t('hidePreview') : t('showPreview')}
-                onclick={() => toggleCardPreview(contact)}
-              >
-                <Icon name="eye" size={14} />
-                <span class="rcard-btn-label">{expandedId === contact.id ? t('hidePreview') : t('showPreview')}</span>
-              </button>
+              {#if template}
+                <button
+                  class="btn sm rcard-preview-btn {expandedId === contact.id ? 'active-toggle' : 'secondary'}"
+                  type="button"
+                  aria-expanded={expandedId === contact.id}
+                  aria-label={expandedId === contact.id ? t('hidePreview') : t('showPreview')}
+                  title={expandedId === contact.id ? t('hidePreview') : t('showPreview')}
+                  onclick={() => toggleCardPreview(contact)}
+                >
+                  <Icon name="eye" size={14} />
+                  <span class="rcard-btn-label">{expandedId === contact.id ? t('hidePreview') : t('showPreview')}</span>
+                </button>
+              {/if}
               <button
                 class="btn icon-btn secondary sm"
                 type="button"

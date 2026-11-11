@@ -9,10 +9,10 @@ Tidak ada backend. Tidak ada pengiriman otomatis.
 
 ## 1. Alur singkat
 
-1. Buat template (**New template**).
+1. Buat template (**New template**), atau langsung isi daftar **Penerima** kapan saja (kontak tetap bisa ditambah, diimpor, dilabeli, dan dikelola walau belum ada template).
 2. Tulis pesan. Pakai bilah format untuk `*tebal*`, `_miring_`, `~coret~`, `` `kode` ``, serta tombol menu emoji (`😊`) untuk menyisipkan emoji, dan pakai `{{nama}}` untuk nama kontak serta `{{variabel}}` lain sesuai kebutuhan.
 3. Atur variabel template (nama tampilan dan nilai bawaan / global) di panel **Variables**.
-4. Di tampilan desktop, panel **Penerima** berada di bawah daftar **Template** (kolom kiri) sebagai daftar kontak yang ringkas. Tambah penerima: impor file CSV/VCF, tempel baris, atau tambah satu per satu.
+4. Di tampilan desktop, panel **Penerima** berada di bawah daftar **Template** (kolom kiri) sebagai daftar kontak yang ringkas — selalu tersedia walau belum ada template. Gunakan tombol ringkas **+ Tambah**, **Tempel**, atau **CSV/VCF** di kepala panel.
 5. Saring penerima lewat chip label atau pencarian, dan centang kontak tertentu jika hanya ingin mengirim ke subset kontak.
 6. Klik kontak di daftar untuk mempratinjau pesannya di panel kanan, klik **Atur** (atau klik ganda baris kontak) untuk membuka modal per nomor berisi tiga bagian terpisah (**Info kontak**, **Label**, **Variabel template**) beserta pratinjau langsung dan tombol **Sebelumnya / Berikutnya**, lalu klik **WA** / **Open WhatsApp**.
 7. Di HP (layar `<= 760px`), app memakai viewport terkunci (`100dvh`) dengan 4 tab di bar bawah (**Template**, **Susun**, **Pratinjau**, **Kirim**) dan menu utilitas (**Bahasa**, **Tema**, **Ekspor**, **Impor**, **Impor CSV / VCF**, **Bantuan**) di tombol **Menu** kanan atas. Di mode **Kirim**, tersedia tampilan **Daftar** (kartu penuh tanpa scroll menyamping) dan **Fokus** (kirim satu per satu dengan pratinjau langsung), serta tombol **Atur** untuk membuka modal per nomor.
