@@ -11,6 +11,7 @@
   import RecipientTable from './lib/RecipientTable.svelte'
   import ImportDialog from './lib/ImportDialog.svelte'
   import ContactImport from './lib/ContactImport.svelte'
+  import ContactModal from './lib/ContactModal.svelte'
   import HelpModal from './lib/HelpModal.svelte'
   import EmojiPicker from './lib/EmojiPicker.svelte'
 
@@ -29,6 +30,8 @@
   let newVar = $state('')
   let showImport = $state(false)
   let showContactImport = $state(false)
+  let editingId = $state(null)
+  let editingScopeIds = $state([])
   let importData = $state(null)
   let importInfo = $state(null)
   let confirmTplId = $state(null)
@@ -67,6 +70,14 @@
   )
   let previewMissing = $derived(
     active && previewContact ? vars.filter((v) => !resolve(v, previewContact, active)) : []
+  )
+  let editingContact = $derived(
+    editingId ? data.contacts.find((c) => c.id === editingId) ?? null : null
+  )
+  let editingNavList = $derived(
+    editingScopeIds
+      .map((id) => data.contacts.find((c) => c.id === id))
+      .filter(Boolean)
   )
 
   function readTheme() {
@@ -394,6 +405,18 @@
   function deleteContact(contact) {
     data.contacts = data.contacts.filter((c) => c.id !== contact.id)
     if (previewId === contact.id) previewId = null
+    if (editingId === contact.id) editingId = null
+  }
+
+  function openContactModal(contact, list = filteredContacts) {
+    editingId = contact.id
+    editingScopeIds = list.map((c) => c.id)
+    previewId = contact.id
+  }
+
+  function selectEditingContact(id) {
+    editingId = id
+    previewId = id
   }
 
   function openWa(contact) {
@@ -447,6 +470,8 @@
     data = importData
     activeId = data.templates[0]?.id ?? null
     previewId = null
+    editingId = null
+    editingScopeIds = []
     labelFilter = []
     showImport = false
     store.saveNow(data)
@@ -694,56 +719,210 @@
 
   <div class="mobile-viewport" bind:this={viewportEl}>
   <main class="workspace" class:single={!active}>
-    <aside class="panel sidebar" aria-label={t('templates')}>
-      <div class="panel-head">
-        <h2>{t('templates')}</h2>
-        <button
-          class="btn sm {data.templates.length === 0 ? 'primary' : 'secondary'}"
-          type="button"
-          onclick={newTemplate}
-        >
-          <Icon name="plus" size={14} />
-          <span>{t('newTemplate')}</span>
-        </button>
-      </div>
+    <div class="workspace-rail">
+      <aside class="panel sidebar" aria-label={t('templates')}>
+        <div class="panel-head">
+          <h2>{t('templates')}</h2>
+          <button
+            class="btn sm {data.templates.length === 0 ? 'primary' : 'secondary'}"
+            type="button"
+            onclick={newTemplate}
+          >
+            <Icon name="plus" size={14} />
+            <span>{t('newTemplate')}</span>
+          </button>
+        </div>
 
-      {#if data.templates.length === 0}
-        <p class="muted small sidebar-empty">{t('noTemplatesDesc')}</p>
-      {:else}
-        <ul class="tpl-list">
-          {#each data.templates as tpl (tpl.id)}
-            <li class="tpl-item" class:active={tpl.id === activeId}>
-              {#if confirmTplId === tpl.id}
-                <div class="tpl-confirm" bind:this={confirmTplEl} role="group" aria-label={t('confirmDeleteTemplatePrompt')}>
-                  <span class="tpl-confirm-label">{t('confirmDeleteTemplatePrompt')}</span>
-                  <div class="tpl-confirm-actions">
-                    <button class="confirm-btn" type="button" onclick={() => (confirmTplId = null)}>
-                      {t('cancel')}
-                    </button>
-                    <button class="confirm-btn danger" type="button" onclick={() => confirmDeleteTemplate(tpl.id)}>
-                      {t('delete')}
-                    </button>
+        {#if data.templates.length === 0}
+          <p class="muted small sidebar-empty">{t('noTemplatesDesc')}</p>
+        {:else}
+          <ul class="tpl-list">
+            {#each data.templates as tpl (tpl.id)}
+              <li class="tpl-item" class:active={tpl.id === activeId}>
+                {#if confirmTplId === tpl.id}
+                  <div class="tpl-confirm" bind:this={confirmTplEl} role="group" aria-label={t('confirmDeleteTemplatePrompt')}>
+                    <span class="tpl-confirm-label">{t('confirmDeleteTemplatePrompt')}</span>
+                    <div class="tpl-confirm-actions">
+                      <button class="confirm-btn" type="button" onclick={() => (confirmTplId = null)}>
+                        {t('cancel')}
+                      </button>
+                      <button class="confirm-btn danger" type="button" onclick={() => confirmDeleteTemplate(tpl.id)}>
+                        {t('delete')}
+                      </button>
+                    </div>
                   </div>
+                {:else}
+                  <button class="tpl-name" type="button" onclick={() => selectTemplate(tpl.id, true)}>
+                    {tpl.name || t('untitled')}
+                  </button>
+                  <button
+                    class="tpl-del"
+                    type="button"
+                    title={t('delete')}
+                    aria-label={t('deleteTemplateAria', { name: tpl.name || t('untitled') })}
+                    onclick={() => (confirmTplId = tpl.id)}
+                  >
+                    <Icon name="x" size={14} />
+                  </button>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </aside>
+
+      {#if active}
+        <section class="panel recipients" aria-label={t('recipients')}>
+          <div class="mobile-tpl-bar">
+            <label class="mobile-tpl-picker">
+              <span class="mobile-tpl-caption">{t('activeTemplate')}</span>
+              <select
+                class="input mobile-tpl-select"
+                value={activeId}
+                aria-label={t('activeTemplate')}
+                onchange={(e) => selectTemplate(e.currentTarget.value)}
+              >
+                {#each data.templates as tpl (tpl.id)}
+                  <option value={tpl.id}>{tpl.name || t('untitled')}</option>
+                {/each}
+              </select>
+            </label>
+            <button
+              class="btn secondary sm"
+              type="button"
+              onclick={() => switchMobileTab('compose')}
+            >
+              <Icon name="edit" size={14} />
+              <span>{t('navCompose')}</span>
+            </button>
+          </div>
+
+          <div class="panel-head recipients-head">
+            <h2>{t('recipients')}</h2>
+            <div class="recipients-actions">
+              <button
+                class="btn sm secondary"
+                type="button"
+                onclick={() => (showContactImport = true)}
+              >
+                <Icon name="upload" size={14} />
+                <span>{t('importContacts')}</span>
+              </button>
+              <button
+                class="btn sm {showPaste ? 'active-toggle' : 'secondary'}"
+                type="button"
+                aria-expanded={showPaste}
+                onclick={togglePaste}
+              >
+                <Icon name="clipboard" size={14} />
+                <span>{t('pasteRows')}</span>
+              </button>
+              <button
+                class="btn sm {showAdd ? 'active-toggle' : 'primary'}"
+                type="button"
+                aria-expanded={showAdd}
+                onclick={toggleAdd}
+              >
+                <Icon name="plus" size={14} />
+                <span>{t('addContact')}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="collapsible" data-open={showPaste ? 'true' : 'false'} inert={!showPaste}>
+            <div class="collapsible-inner">
+              <div class="subpanel">
+                <p class="hint">{t('pasteHelp')}</p>
+                <textarea
+                  class="input mono"
+                  rows="4"
+                  bind:value={pasteText}
+                  placeholder={t('pastePlaceholder')}
+                  disabled={!showPaste}
+                ></textarea>
+                <div class="row gap wrap">
+                  <button
+                    class="btn primary sm"
+                    type="button"
+                    onclick={addPasted}
+                    disabled={!showPaste || !pasteText.trim()}
+                  >
+                    {t('addContactsAction')}
+                  </button>
+                  <button class="btn ghost sm" type="button" onclick={() => (showPaste = false)}>
+                    {t('cancel')}
+                  </button>
                 </div>
-              {:else}
-                <button class="tpl-name" type="button" onclick={() => selectTemplate(tpl.id, true)}>
-                  {tpl.name || t('untitled')}
-                </button>
-                <button
-                  class="tpl-del"
-                  type="button"
-                  title={t('delete')}
-                  aria-label={t('deleteTemplateAria', { name: tpl.name || t('untitled') })}
-                  onclick={() => (confirmTplId = tpl.id)}
-                >
-                  <Icon name="x" size={14} />
-                </button>
-              {/if}
-            </li>
-          {/each}
-        </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="collapsible" data-open={showAdd ? 'true' : 'false'} inert={!showAdd}>
+            <div class="collapsible-inner">
+              <form class="subpanel" onsubmit={addManual}>
+                <div class="add-grid">
+                  <label class="field">
+                    <span class="field-label">{t('phone')}</span>
+                    <input
+                      class="input"
+                      bind:value={form.phone}
+                      placeholder="0896..."
+                      required
+                      disabled={!showAdd}
+                    />
+                  </label>
+                  <label class="field">
+                    <span class="field-label">{t('name')}</span>
+                    <input
+                      class="input"
+                      bind:value={form.name}
+                      placeholder="-"
+                      disabled={!showAdd}
+                    />
+                  </label>
+                  {#each valueVars as v (v)}
+                    <label class="field">
+                      <span class="field-label" title={v}>{varLabel(active, v)}</span>
+                      <input
+                        class="input"
+                        value={form.values[v] ?? ''}
+                        placeholder="-"
+                        disabled={!showAdd}
+                        oninput={(e) => (form.values[v] = e.currentTarget.value)}
+                      />
+                    </label>
+                  {/each}
+                </div>
+                <div class="row gap wrap">
+                  <button class="btn primary sm" type="submit" disabled={!showAdd}>{t('add')}</button>
+                  <button class="btn ghost sm" type="button" onclick={() => (showAdd = false)}>
+                    {t('cancel')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <RecipientTable
+            contacts={filteredContacts}
+            allContactIds={data.contacts.map((c) => c.id)}
+            totalCount={data.contacts.length}
+            template={active}
+            vars={valueVars}
+            {labelPool}
+            {labelFilter}
+            onToggleLabelFilter={toggleLabelFilter}
+            onClearLabelFilter={() => (labelFilter = [])}
+            focusedId={previewContact?.id ?? null}
+            {t}
+            onOpen={openWa}
+            onDelete={deleteContact}
+            onFocus={(contact) => (previewId = contact.id)}
+            onEdit={(contact, list) => openContactModal(contact, list)}
+          />
+        </section>
       {/if}
-    </aside>
+    </div>
 
     {#if active}
       <section class="panel editor" aria-label={t('messageBody')}>
@@ -977,156 +1156,6 @@
       </section>
     {/if}
   </main>
-
-  {#if active}
-    <section class="panel recipients" aria-label={t('recipients')}>
-      <div class="mobile-tpl-bar">
-        <label class="mobile-tpl-picker">
-          <span class="mobile-tpl-caption">{t('activeTemplate')}</span>
-          <select
-            class="input mobile-tpl-select"
-            value={activeId}
-            aria-label={t('activeTemplate')}
-            onchange={(e) => selectTemplate(e.currentTarget.value)}
-          >
-            {#each data.templates as tpl (tpl.id)}
-              <option value={tpl.id}>{tpl.name || t('untitled')}</option>
-            {/each}
-          </select>
-        </label>
-        <button
-          class="btn secondary sm"
-          type="button"
-          onclick={() => switchMobileTab('compose')}
-        >
-          <Icon name="edit" size={14} />
-          <span>{t('navCompose')}</span>
-        </button>
-      </div>
-
-      <div class="panel-head">
-        <h2>{t('recipients')}</h2>
-        <div class="row gap wrap">
-          <button
-            class="btn sm secondary"
-            type="button"
-            onclick={() => (showContactImport = true)}
-          >
-            <Icon name="upload" size={14} />
-            <span>{t('importContacts')}</span>
-          </button>
-          <button
-            class="btn sm {showPaste ? 'active-toggle' : 'secondary'}"
-            type="button"
-            aria-expanded={showPaste}
-            onclick={togglePaste}
-          >
-            <Icon name="clipboard" size={14} />
-            <span>{t('pasteRows')}</span>
-          </button>
-          <button
-            class="btn sm {showAdd ? 'active-toggle' : 'primary'}"
-            type="button"
-            aria-expanded={showAdd}
-            onclick={toggleAdd}
-          >
-            <Icon name="plus" size={14} />
-            <span>{t('addContact')}</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="collapsible" data-open={showPaste ? 'true' : 'false'} inert={!showPaste}>
-        <div class="collapsible-inner">
-          <div class="subpanel">
-            <p class="hint">{t('pasteHelp')}</p>
-            <textarea
-              class="input mono"
-              rows="4"
-              bind:value={pasteText}
-              placeholder={t('pastePlaceholder')}
-              disabled={!showPaste}
-            ></textarea>
-            <div class="row gap wrap">
-              <button
-                class="btn primary sm"
-                type="button"
-                onclick={addPasted}
-                disabled={!showPaste || !pasteText.trim()}
-              >
-                {t('addContactsAction')}
-              </button>
-              <button class="btn ghost sm" type="button" onclick={() => (showPaste = false)}>
-                {t('cancel')}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="collapsible" data-open={showAdd ? 'true' : 'false'} inert={!showAdd}>
-        <div class="collapsible-inner">
-          <form class="subpanel" onsubmit={addManual}>
-            <div class="add-grid">
-              <label class="field">
-                <span class="field-label">{t('phone')}</span>
-                <input
-                  class="input"
-                  bind:value={form.phone}
-                  placeholder="0896..."
-                  required
-                  disabled={!showAdd}
-                />
-              </label>
-              <label class="field">
-                <span class="field-label">{t('name')}</span>
-                <input
-                  class="input"
-                  bind:value={form.name}
-                  placeholder="-"
-                  disabled={!showAdd}
-                />
-              </label>
-              {#each valueVars as v (v)}
-                <label class="field">
-                  <span class="field-label" title={v}>{varLabel(active, v)}</span>
-                  <input
-                    class="input"
-                    value={form.values[v] ?? ''}
-                    placeholder="-"
-                    disabled={!showAdd}
-                    oninput={(e) => (form.values[v] = e.currentTarget.value)}
-                  />
-                </label>
-              {/each}
-            </div>
-            <div class="row gap wrap">
-              <button class="btn primary sm" type="submit" disabled={!showAdd}>{t('add')}</button>
-              <button class="btn ghost sm" type="button" onclick={() => (showAdd = false)}>
-                {t('cancel')}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <RecipientTable
-        contacts={filteredContacts}
-        totalCount={data.contacts.length}
-        template={active}
-        vars={valueVars}
-        {labelPool}
-        {labelFilter}
-        onToggleLabelFilter={toggleLabelFilter}
-        onClearLabelFilter={() => (labelFilter = [])}
-        focusedId={previewContact?.id ?? null}
-        {t}
-        onOpen={openWa}
-        onDelete={deleteContact}
-        onFocus={(contact) => (previewId = contact.id)}
-      />
-    </section>
-  {/if}
   </div>
 
   <nav class="mobile-nav" aria-label={t('navLabel')}>
@@ -1201,5 +1230,21 @@
     {t}
     onImport={doImportContacts}
     onCancel={() => (showContactImport = false)}
+  />
+{/if}
+
+{#if editingContact}
+  <ContactModal
+    contact={editingContact}
+    template={active}
+    vars={valueVars}
+    allContacts={data.contacts}
+    {labelPool}
+    navList={editingNavList}
+    {t}
+    onSelectContact={selectEditingContact}
+    onOpen={openWa}
+    onDelete={deleteContact}
+    onClose={() => (editingId = null)}
   />
 {/if}
