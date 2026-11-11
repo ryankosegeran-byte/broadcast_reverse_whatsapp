@@ -368,6 +368,7 @@ h2 {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
+  max-width: 100%;
   min-height: var(--control-height-md);
   padding: 0 var(--space-4);
   border: 1px solid var(--border);
@@ -576,13 +577,13 @@ h2 {
 /* Workspace grid */
 .workspace {
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr) 368px;
+  grid-template-columns: 276px minmax(0, 1fr) 368px;
   gap: var(--space-4);
   align-items: start;
 }
 
 .workspace.single {
-  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-columns: 276px minmax(0, 1fr);
 }
 
 .panel {
@@ -597,12 +598,9 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
-}
-
-.panel-head.wrap {
   flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
 /* Sidebar */
@@ -690,6 +688,7 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--space-2);
   padding: 4px 0;
   animation: surface-in var(--duration-instant) var(--ease-enter) both;
@@ -710,6 +709,7 @@ h2 {
   align-items: center;
   gap: 2px;
   flex: none;
+  margin-left: auto;
 }
 
 /* Inline confirm pill (Arc ConfirmMorph + Bencho inline-confirm) */
@@ -1071,8 +1071,12 @@ textarea.body {
 .chip {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
   min-height: 30px;
   padding: 0 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   border-radius: var(--radius-pill);
   border: 1px solid color-mix(in oklab, var(--accent) 36%, var(--border));
   background: var(--accent-subtle);
@@ -1148,6 +1152,7 @@ textarea.body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
@@ -1716,7 +1721,7 @@ td.actions {
 @media (max-width: 1120px) {
   .workspace,
   .workspace.single {
-    grid-template-columns: 224px minmax(0, 1fr);
+    grid-template-columns: 272px minmax(0, 1fr);
   }
 
   .preview-panel {
@@ -2042,6 +2047,7 @@ td.actions {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: var(--space-2);
     min-width: 0;
   }
@@ -2124,6 +2130,7 @@ td.actions {
   .rcard-actions {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: var(--space-2);
     min-width: 0;
   }
@@ -2137,6 +2144,7 @@ td.actions {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: var(--space-2);
     padding: var(--space-2);
     border: 1px solid var(--border);

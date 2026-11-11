@@ -927,7 +927,7 @@
         </button>
       </div>
 
-      <div class="panel-head wrap">
+      <div class="panel-head">
         <h2>{t('recipients')}</h2>
         <div class="row gap wrap">
           <button
@@ -962,7 +962,7 @@
               placeholder={t('pastePlaceholder')}
               disabled={!showPaste}
             ></textarea>
-            <div class="row gap">
+            <div class="row gap wrap">
               <button
                 class="btn primary sm"
                 type="button"
@@ -1015,7 +1015,7 @@
                 </label>
               {/each}
             </div>
-            <div class="row gap">
+            <div class="row gap wrap">
               <button class="btn primary sm" type="submit" disabled={!showAdd}>{t('add')}</button>
               <button class="btn ghost sm" type="button" onclick={() => (showAdd = false)}>
                 {t('cancel')}
