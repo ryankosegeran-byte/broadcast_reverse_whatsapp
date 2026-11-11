@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { detectVariables, resolve, render } from './vars.js'
+import { detectVariables, resolve, render, templateVarKeys, varLabel } from './vars.js'
 
 const template = { id: 'tpl_1', globals: { invoice: 'GLOBAL-INV' } }
 const contact = { name: 'FENDY', values: { tpl_1: { total: '55.161' } } }
@@ -30,4 +30,15 @@ test('renders body with fallbacks', () => {
 
 test('renders without a contact using globals only', () => {
   assert.equal(render('Hi {{nama}}! {{invoice}}', null, template), 'Hi ! GLOBAL-INV')
+})
+
+test('templateVarKeys unions declared vars and body variables', () => {
+  const tpl = { body: 'Hi {{nama}} {{total}}', vars: [{ key: 'invoice', label: 'No. Invoice' }] }
+  assert.deepEqual(templateVarKeys(tpl), ['invoice', 'nama', 'total'])
+})
+
+test('varLabel falls back to the key', () => {
+  const tpl = { body: '', vars: [{ key: 'invoice', label: 'No. Invoice' }] }
+  assert.equal(varLabel(tpl, 'invoice'), 'No. Invoice')
+  assert.equal(varLabel(tpl, 'other'), 'other')
 })

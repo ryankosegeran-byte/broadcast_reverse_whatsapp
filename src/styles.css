@@ -1104,6 +1104,141 @@ textarea.body {
   transform: scale(0.96);
 }
 
+/* Label toggle chips in the recipients tool bar */
+.label-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.label-filter-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.label-filter .chip {
+  font-family: var(--font-body);
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+
+.label-filter .chip:hover {
+  background: var(--surface-muted);
+  border-color: var(--border-strong);
+  color: var(--foreground);
+}
+
+.label-filter .chip[aria-pressed='true'],
+.chip[aria-pressed='true'] {
+  background: var(--accent-subtle);
+  border-color: color-mix(in oklab, var(--accent) 42%, var(--border));
+  color: color-mix(in oklab, var(--accent-strong) 88%, var(--foreground));
+}
+
+:root[data-theme='dark'] .label-filter .chip[aria-pressed='true'],
+:root[data-theme='dark'] .chip[aria-pressed='true'] {
+  color: var(--accent-strong);
+}
+
+/* Contact label chips */
+.label-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  line-height: 1.7;
+  border: 1px solid hsl(var(--label-hue, 160) 55% 45% / 45%);
+  background: hsl(var(--label-hue, 160) 55% 45% / 14%);
+  color: hsl(var(--label-hue, 160) 45% 32%);
+  white-space: nowrap;
+}
+
+:root[data-theme='dark'] .label-chip {
+  border-color: hsl(var(--label-hue, 160) 55% 60% / 50%);
+  background: hsl(var(--label-hue, 160) 55% 60% / 18%);
+  color: hsl(var(--label-hue, 160) 60% 82%);
+}
+
+.label-chip-x {
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.label-chip-x:hover {
+  opacity: 1;
+}
+
+.label-editor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.label-add-input {
+  width: 96px;
+  padding: 3px 7px;
+  font-size: 11px;
+  font-family: inherit;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: inherit;
+}
+
+.label-add-input:focus {
+  border-color: var(--accent-strong);
+}
+
+.col-select {
+  width: 34px;
+  text-align: center;
+}
+
+td.col-labels {
+  min-width: 170px;
+}
+
+.select-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.var-rows {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.var-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 0.9fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.var-row .var-key {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .globals-block {
   padding-top: var(--space-3);
   border-top: 1px solid var(--border-subtle);
@@ -2273,6 +2408,14 @@ td.actions {
   .global-row {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-1);
+  }
+
+  .var-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+
+  .var-row .var-key {
+    grid-column: 1 / -1;
   }
 
   .emoji-popover {

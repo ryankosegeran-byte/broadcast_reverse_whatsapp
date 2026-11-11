@@ -59,3 +59,42 @@ test('merge keeps local contact data and fills only blanks', () => {
   assert.equal(local.contacts[0].values.t1.total, '10')
   assert.equal(local.contacts[0].sentAt.t1, '2026-05-05T00:00:00.000Z')
 })
+
+test('migrate upgrades v1 to v2 with labels and vars', () => {
+  const state = migrate({
+    templates: [{ name: 'A', body: '{{x}}' }],
+    contacts: [{ phone: '62811111', name: 'Budi' }],
+  })
+  assert.equal(state.schemaVersion, 2)
+  assert.deepEqual(state.templates[0].vars, [])
+  assert.deepEqual(state.contacts[0].labels, [])
+})
+
+test('migrate normalises labels and validates vars', () => {
+  const state = migrate({
+    templates: [{ name: 'A', body: '', vars: [{ key: 'x', label: 'X' }, { key: 'x', label: 'dup' }, { key: '!' }] }],
+    contacts: [{ phone: '62811111', name: '', labels: [' VIP ', 'VIP', ''] }],
+  })
+  assert.deepEqual(state.templates[0].vars, [{ key: 'x', label: 'X' }])
+  assert.deepEqual(state.contacts[0].labels, ['VIP'])
+})
+
+test('mergeStates merges template vars and unions contact labels', () => {
+  const local = emptyState()
+  local.templates.push({ id: 't1', name: 'Bills', body: '', vars: [{ key: 'x', label: '' }], globals: {} })
+  local.contacts.push({ id: 'c1', phone: '628111', name: 'A', labels: ['VIP'], values: {}, sentAt: {} })
+  const incoming = emptyState()
+  incoming.templates.push({
+    id: 't1',
+    name: 'Bills',
+    body: '',
+    vars: [{ key: 'x', label: 'Amount' }, { key: 'y', label: 'Note' }],
+    globals: {},
+  })
+  incoming.contacts.push({ id: 'c9', phone: '628111', name: '', labels: ['VIP', 'Lama'], values: {}, sentAt: {} })
+
+  mergeStates(local, incoming)
+
+  assert.deepEqual(local.templates[0].vars, [{ key: 'x', label: 'Amount' }, { key: 'y', label: 'Note' }])
+  assert.deepEqual(local.contacts[0].labels, ['VIP', 'Lama'])
+})

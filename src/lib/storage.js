@@ -1,6 +1,6 @@
 import { normalizePhone, isValidPhone } from './wa.js'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 export const DATA_KEY = 'wa-broadcast:v1'
 export const LANG_KEY = 'wa-broadcast:lang'
 export const CORRUPT_KEY = 'wa-broadcast:v1:corrupt'
@@ -29,6 +29,12 @@ export function migrate(raw) {
       name: String(t.name ?? ''),
       body: String(t.body ?? ''),
       globals: t.globals && typeof t.globals === 'object' ? { ...t.globals } : {},
+      vars: Array.isArray(t.vars)
+        ? t.vars
+            .filter((v) => v && typeof v === 'object' && /^[\w.-]+$/.test(String(v.key ?? '')))
+            .map((v) => ({ key: String(v.key), label: String(v.label ?? '') }))
+            .filter((v, i, all) => all.findIndex((x) => x.key === v.key) === i)
+        : [],
       createdAt: t.createdAt ?? new Date().toISOString(),
       updatedAt: t.updatedAt ?? new Date().toISOString(),
     }))
@@ -39,6 +45,9 @@ export function migrate(raw) {
       id: typeof c.id === 'string' && c.id ? c.id : uid('c'),
       phone: normalizePhone(c.phone),
       name: String(c.name ?? ''),
+      labels: Array.isArray(c.labels)
+        ? [...new Set(c.labels.map((l) => String(l).trim()).filter(Boolean))]
+        : [],
       values: c.values && typeof c.values === 'object' ? c.values : {},
       sentAt: c.sentAt && typeof c.sentAt === 'object' ? c.sentAt : {},
     }))
@@ -122,6 +131,12 @@ export function mergeStates(local, incoming) {
   for (const t of local.templates) {
     const source = incoming.templates.find((x) => x.id === t.id)
     if (!source) continue
+    t.vars ??= []
+    for (const v of source.vars ?? []) {
+      const cur = t.vars.find((x) => x.key === v.key)
+      if (!cur) t.vars.push({ ...v })
+      else if (!cur.label && v.label) cur.label = v.label
+    }
     for (const [key, value] of Object.entries(source.globals ?? {})) {
       if (!t.globals[key]) t.globals[key] = value
     }
@@ -136,6 +151,8 @@ export function mergeStates(local, incoming) {
       continue
     }
     if (!existing.name && c.name) existing.name = c.name
+    existing.labels ??= []
+    for (const l of c.labels ?? []) if (!existing.labels.includes(l)) existing.labels.push(l)
     for (const [templateId, values] of Object.entries(c.values ?? {})) {
       existing.values[templateId] ??= {}
       for (const [key, value] of Object.entries(values ?? {})) {

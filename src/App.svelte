@@ -1,7 +1,7 @@
 <script>
   import { onMount, tick } from 'svelte'
   import * as store from './lib/storage.js'
-  import { detectVariables, render, resolve } from './lib/vars.js'
+  import { render, resolve, templateVarKeys, varLabel } from './lib/vars.js'
   import { normalizePhone, isValidPhone, buildWaUrl } from './lib/wa.js'
   import { wrapMarker } from './lib/waFormat.js'
   import { t, lang, setLang, applyLang } from './lib/i18n.svelte.js'
@@ -35,6 +35,7 @@
   let showMobileMenu = $state(false)
   let form = $state({ phone: '', name: '', values: {} })
   let theme = $state(readTheme())
+  let labelFilter = $state([])
 
   let nameEl = $state(null)
   let bodyEl = $state(null)
@@ -46,11 +47,23 @@
   let bodyCursor = null
   let noticeTimer
 
+  function uniqueLabels(contacts) {
+    const set = new Set()
+    for (const c of contacts) for (const l of c.labels ?? []) if (l) set.add(l)
+    return [...set].sort((a, b) => a.localeCompare(b))
+  }
+
   let active = $derived(data.templates.find((x) => x.id === activeId) ?? null)
-  let vars = $derived(active ? detectVariables(active.body) : [])
+  let vars = $derived(active ? templateVarKeys(active) : [])
   let valueVars = $derived(vars.filter((v) => v !== 'nama'))
+  let labelPool = $derived(uniqueLabels(data.contacts))
+  let filteredContacts = $derived(
+    labelFilter.length === 0
+      ? data.contacts
+      : data.contacts.filter((c) => labelFilter.some((l) => (c.labels ?? []).includes(l)))
+  )
   let previewContact = $derived(
-    data.contacts.find((c) => c.id === previewId) ?? data.contacts[0] ?? null
+    filteredContacts.find((c) => c.id === previewId) ?? filteredContacts[0] ?? null
   )
   let previewText = $derived(
     !active ? '' : previewContact ? render(active.body, previewContact, active) : active.body
@@ -111,6 +124,14 @@
   $effect(() => {
     JSON.stringify(data)
     store.scheduleSave(data)
+  })
+
+  $effect(() => {
+    if (labelFilter.length === 0) return
+    const pool = new Set(labelPool)
+    if (labelFilter.some((l) => !pool.has(l))) {
+      labelFilter = labelFilter.filter((l) => pool.has(l))
+    }
   })
 
   onMount(() => {
@@ -183,7 +204,7 @@
 
   function newTemplate() {
     const now = new Date().toISOString()
-    const tpl = { id: store.uid('tpl'), name: '', body: '', globals: {}, createdAt: now, updatedAt: now }
+    const tpl = { id: store.uid('tpl'), name: '', body: '', vars: [], globals: {}, createdAt: now, updatedAt: now }
     data.templates.push(tpl)
     activeId = tpl.id
     previewId = null
@@ -305,6 +326,7 @@
       id: store.uid('c'),
       phone,
       name: String(rawName ?? '').trim(),
+      labels: [],
       values: active ? { [active.id]: values } : {},
       sentAt: {},
     })
@@ -345,6 +367,12 @@
       pasteText = ''
       showPaste = false
     }
+  }
+
+  function toggleLabelFilter(label) {
+    labelFilter = labelFilter.includes(label)
+      ? labelFilter.filter((l) => l !== label)
+      : [...labelFilter, label]
   }
 
   function deleteContact(contact) {
@@ -403,6 +431,7 @@
     data = importData
     activeId = data.templates[0]?.id ?? null
     previewId = null
+    labelFilter = []
     showImport = false
     store.saveNow(data)
     notify(t('importDone'))
@@ -838,7 +867,7 @@
       </section>
 
       <aside class="panel preview-panel" aria-label={t('preview')}>
-        {#if data.contacts.length > 1}
+        {#if filteredContacts.length > 1}
           <label class="mobile-preview-picker">
             <span class="mobile-tpl-caption">{t('recipients')}</span>
             <select
@@ -847,7 +876,7 @@
               aria-label={t('recipients')}
               onchange={(e) => (previewId = e.currentTarget.value)}
             >
-              {#each data.contacts as c (c.id)}
+              {#each filteredContacts as c (c.id)}
                 <option value={c.id}>{c.name ? `${c.name} (${c.phone})` : c.phone}</option>
               {/each}
             </select>
@@ -1004,7 +1033,7 @@
               </label>
               {#each valueVars as v (v)}
                 <label class="field">
-                  <span class="field-label">{v}</span>
+                  <span class="field-label" title={v}>{varLabel(active, v)}</span>
                   <input
                     class="input"
                     value={form.values[v] ?? ''}
@@ -1026,9 +1055,14 @@
       </div>
 
       <RecipientTable
-        contacts={data.contacts}
+        contacts={filteredContacts}
+        totalCount={data.contacts.length}
         template={active}
         vars={valueVars}
+        {labelPool}
+        {labelFilter}
+        onToggleLabelFilter={toggleLabelFilter}
+        onClearLabelFilter={() => (labelFilter = [])}
         focusedId={previewContact?.id ?? null}
         {t}
         onOpen={openWa}

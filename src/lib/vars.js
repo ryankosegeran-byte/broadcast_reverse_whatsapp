@@ -21,3 +21,16 @@ export function resolve(key, contact, template) {
 export function render(body, contact, template) {
   return String(body ?? '').replace(VAR_RE, (_, key) => resolve(key, contact, template))
 }
+
+/** Keys used by a template: declared vars first, then keys found in the body. */
+export function templateVarKeys(template) {
+  const declared = (template?.vars ?? []).filter((v) => /^[\w.-]+$/.test(String(v?.key ?? '')))
+  const keys = [...declared.map((v) => v.key), ...detectVariables(template?.body)]
+  return [...new Set(keys)]
+}
+
+/** Display name for a variable, falling back to the key itself. */
+export function varLabel(template, key) {
+  const found = (template?.vars ?? []).find((v) => v?.key === key)
+  return found?.label?.trim() ? found.label.trim() : key
+}
