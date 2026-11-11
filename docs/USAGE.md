@@ -10,7 +10,7 @@ Tidak ada backend. Tidak ada pengiriman otomatis.
 ## 1. Alur singkat
 
 1. Buat template (**New template**).
-2. Tulis pesan. Pakai bilah format untuk `*tebal*`, `_miring_`, `~coret~`, atau `` `kode` ``, serta `{{nama}}` untuk nama kontak dan `{{variabel}}` lain sesuai kebutuhan.
+2. Tulis pesan. Pakai bilah format untuk `*tebal*`, `_miring_`, `~coret~`, `` `kode` ``, serta tombol menu emoji (`😊`) untuk menyisipkan emoji, dan pakai `{{nama}}` untuk nama kontak serta `{{variabel}}` lain sesuai kebutuhan.
 3. Isi nilai global (dipakai kalau kontak tidak punya nilai sendiri).
 4. Tambah penerima: tempel baris atau tambah satu per satu.
 5. Klik atau fokuskan baris untuk melihat pratinjau pesan, lalu klik **Open WhatsApp**.
@@ -109,7 +109,7 @@ https://api.whatsapp.com/send?phone=6289698129722&text=<pesan ter-encode>
 ## 6. Penyimpanan
 
 - Data disimpan di `localStorage` browser: key `wa-broadcast:v1`.
-- Bahasa (`wa-broadcast:lang`) dan tema tampilan (`wa-broadcast:theme`) disimpan terpisah per perangkat.
+- Bahasa (`wa-broadcast:lang`), tema tampilan (`wa-broadcast:theme`), dan riwayat emoji terakhir (`wa-broadcast:recent-emojis`) disimpan terpisah per perangkat.
 - Data **per browser per perangkat**. Buka di HP lain = kosong.
 - Hilang kalau browsing data dibersihkan atau mode private.
 - Kapasitas ~5 MB. Ratusan kontak aman.

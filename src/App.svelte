@@ -10,6 +10,7 @@
   import RecipientTable from './lib/RecipientTable.svelte'
   import ImportDialog from './lib/ImportDialog.svelte'
   import HelpModal from './lib/HelpModal.svelte'
+  import EmojiPicker from './lib/EmojiPicker.svelte'
 
   const THEME_KEY = 'wa-broadcast:theme'
   const boot = store.loadState()
@@ -29,12 +30,15 @@
   let importInfo = $state(null)
   let confirmTplId = $state(null)
   let confirmTplEl = $state(null)
+  let showEmoji = $state(false)
   let form = $state({ phone: '', name: '', values: {} })
   let theme = $state(readTheme())
 
   let nameEl = $state(null)
   let bodyEl = $state(null)
+  let emojiBtnEl = $state(null)
   let fileEl = $state(null)
+  let bodyCursor = null
   let noticeTimer
 
   let active = $derived(data.templates.find((x) => x.id === activeId) ?? null)
@@ -154,11 +158,21 @@
     activeId = tpl.id
     previewId = null
     confirmTplId = null
+    showEmoji = false
+    bodyCursor = null
     tick().then(() => nameEl?.focus())
+  }
+
+  function selectTemplate(id) {
+    activeId = id
+    showEmoji = false
+    bodyCursor = null
   }
 
   function confirmDeleteTemplate(id) {
     confirmTplId = null
+    showEmoji = false
+    bodyCursor = null
     data.templates = data.templates.filter((x) => x.id !== id)
     for (const contact of data.contacts) {
       delete contact.values[id]
@@ -167,12 +181,31 @@
     if (activeId === id) activeId = data.templates[0]?.id ?? null
   }
 
+  function syncBodyCursor() {
+    if (!bodyEl) return
+    bodyCursor = {
+      start: bodyEl.selectionStart ?? bodyEl.value.length,
+      end: bodyEl.selectionEnd ?? bodyEl.value.length,
+    }
+  }
+
+  function toggleEmoji() {
+    if (!showEmoji) syncBodyCursor()
+    showEmoji = !showEmoji
+  }
+
+  function closeEmoji(restoreFocus = false) {
+    showEmoji = false
+    if (restoreFocus) tick().then(() => emojiBtnEl?.focus())
+  }
+
   async function applyFormat(marker) {
     if (!active || !bodyEl) return
-    const start = bodyEl.selectionStart ?? active.body.length
-    const end = bodyEl.selectionEnd ?? start
+    const start = bodyEl.selectionStart ?? bodyCursor?.start ?? active.body.length
+    const end = bodyEl.selectionEnd ?? bodyCursor?.end ?? start
     const next = wrapMarker(active.body, start, end, marker)
     active.body = next.text
+    bodyCursor = { start: next.start, end: next.end }
     await tick()
     bodyEl.focus()
     bodyEl.selectionStart = next.start
@@ -182,12 +215,30 @@
   async function insertVar(key) {
     if (!active || !bodyEl) return
     const token = `{{${key}}}`
-    const start = bodyEl.selectionStart ?? active.body.length
-    const end = bodyEl.selectionEnd ?? start
+    const start = bodyEl.selectionStart ?? bodyCursor?.start ?? active.body.length
+    const end = bodyEl.selectionEnd ?? bodyCursor?.end ?? start
     active.body = active.body.slice(0, start) + token + active.body.slice(end)
+    const nextPos = start + token.length
+    bodyCursor = { start: nextPos, end: nextPos }
     await tick()
     bodyEl.focus()
-    bodyEl.selectionStart = bodyEl.selectionEnd = start + token.length
+    bodyEl.selectionStart = bodyEl.selectionEnd = nextPos
+  }
+
+  async function insertEmoji(char) {
+    if (!active || !bodyEl) return
+    const len = active.body.length
+    const hasLiveFocus = document.activeElement === bodyEl
+    const rawStart = hasLiveFocus ? bodyEl.selectionStart : (bodyCursor?.start ?? bodyEl.selectionStart ?? len)
+    const rawEnd = hasLiveFocus ? bodyEl.selectionEnd : (bodyCursor?.end ?? bodyEl.selectionEnd ?? rawStart)
+    const start = Math.max(0, Math.min(rawStart ?? len, len))
+    const end = Math.max(start, Math.min(rawEnd ?? start, len))
+
+    active.body = active.body.slice(0, start) + char + active.body.slice(end)
+    const nextPos = start + char.length
+    bodyCursor = { start: nextPos, end: nextPos }
+    await tick()
+    bodyEl.selectionStart = bodyEl.selectionEnd = nextPos
   }
 
   function addVariable(event) {
@@ -451,7 +502,7 @@
                   </div>
                 </div>
               {:else}
-                <button class="tpl-name" type="button" onclick={() => (activeId = tpl.id)}>
+                <button class="tpl-name" type="button" onclick={() => selectTemplate(tpl.id)}>
                   {tpl.name || t('untitled')}
                 </button>
                 <button
@@ -517,7 +568,29 @@
               >
                 <Icon name="code" size={14} />
               </button>
+              <span class="format-sep" aria-hidden="true"></span>
+              <button
+                bind:this={emojiBtnEl}
+                class="format-btn"
+                class:active={showEmoji}
+                type="button"
+                title={t('emojiPicker')}
+                aria-label={t('emojiPicker')}
+                aria-expanded={showEmoji}
+                aria-haspopup="dialog"
+                onclick={toggleEmoji}
+              >
+                <Icon name="smile" size={15} />
+              </button>
             </div>
+            {#if showEmoji}
+              <EmojiPicker
+                {t}
+                anchorEl={emojiBtnEl}
+                onPick={insertEmoji}
+                onClose={closeEmoji}
+              />
+            {/if}
           </div>
           <textarea
             id="msg-body"
@@ -526,6 +599,10 @@
             bind:value={active.body}
             rows="11"
             placeholder={t('bodyPlaceholder')}
+            onkeyup={syncBodyCursor}
+            onmouseup={syncBodyCursor}
+            onselect={syncBodyCursor}
+            oninput={syncBodyCursor}
           ></textarea>
         </div>
 
