@@ -13,6 +13,7 @@
   import ContactImport from './lib/ContactImport.svelte'
   import ContactModal from './lib/ContactModal.svelte'
   import HelpModal from './lib/HelpModal.svelte'
+  import AboutModal from './lib/AboutModal.svelte'
   import EmojiPicker from './lib/EmojiPicker.svelte'
 
   const THEME_KEY = 'wa-broadcast:theme'
@@ -24,6 +25,7 @@
   let notice = $state('')
   let blockedUrl = $state('')
   let showHelp = $state(false)
+  let showAbout = $state(false)
   let showPaste = $state(false)
   let showAdd = $state(false)
   let pasteText = $state('')
@@ -171,7 +173,7 @@
       }
     }
     const onKeyDown = (e) => {
-      if (showHelp || showImport || showContactImport || editingId) return
+      if (showHelp || showAbout || showImport || showContactImport || editingId) return
       if (showAdd) {
         if (e.key === 'Escape') {
           e.preventDefault()
@@ -573,7 +575,7 @@
   }
 
   function openPasteModal() {
-    if (showHelp || showImport || showContactImport || editingId) return
+    if (showHelp || showAbout || showImport || showContactImport || editingId) return
     showMobileMenu = false
     showEmoji = false
     showPaste = true
@@ -589,7 +591,7 @@
   }
 
   function openAddModal() {
-    if (showHelp || showImport || showContactImport || editingId) return
+    if (showHelp || showAbout || showImport || showContactImport || editingId) return
     showMobileMenu = false
     showEmoji = false
     showAdd = true
@@ -659,6 +661,11 @@
       <button class="btn secondary sm" type="button" onclick={() => (showHelp = true)}>
         <Icon name="help" size={15} />
         <span>{t('help')}</span>
+      </button>
+
+      <button class="btn secondary sm" type="button" onclick={() => (showAbout = true)}>
+        <Icon name="info" size={15} />
+        <span>{t('about')}</span>
       </button>
 
       <button class="btn secondary sm" type="button" onclick={exportAll}>
@@ -798,6 +805,17 @@
         >
           <Icon name="help" size={16} />
           <span>{t('help')}</span>
+        </button>
+        <button
+          class="mobile-menu-item"
+          type="button"
+          onclick={() => {
+            showMobileMenu = false
+            showAbout = true
+          }}
+        >
+          <Icon name="info" size={16} />
+          <span>{t('about')}</span>
         </button>
       </div>
     </div>
@@ -1280,6 +1298,10 @@
 
 {#if showHelp}
   <HelpModal {t} onClose={() => (showHelp = false)} />
+{/if}
+
+{#if showAbout}
+  <AboutModal {t} onClose={() => (showAbout = false)} />
 {/if}
 
 {#if showImport && importInfo}

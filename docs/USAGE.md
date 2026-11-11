@@ -15,7 +15,7 @@ Tidak ada backend. Tidak ada pengiriman otomatis.
 4. Di tampilan desktop, panel **Penerima** berada di bawah daftar **Template** (kolom kiri) dengan kotak pencarian yang selalu tampil dan tombol **+ Tambah**, **Tempel**, serta **CSV/VCF** yang membuka dialog mengambang terpisah di luar box daftar kontak.
 5. Saring penerima lewat chip label atau pencarian, dan centang kontak tertentu jika hanya ingin mengirim ke subset kontak.
 6. Klik kontak di daftar untuk mempratinjau pesannya di panel kanan, klik **Atur** (atau klik ganda baris kontak) untuk membuka modal per nomor berisi tiga bagian terpisah (**Info kontak**, **Label**, **Variabel template**) beserta pratinjau langsung dan tombol **Sebelumnya / Berikutnya**, lalu klik **WA** / **Open WhatsApp**.
-7. Di HP (layar `<= 760px`), app memakai viewport terkunci (`100dvh`) dengan 4 tab di bar bawah (**Template**, **Susun**, **Pratinjau**, **Kirim**) dan menu utilitas (**Bahasa**, **Tema**, **Ekspor**, **Impor**, **Impor CSV / VCF**, **Bantuan**) di tombol **Menu** kanan atas. Di mode **Kirim**, tersedia tampilan **Daftar** (kartu penuh tanpa scroll menyamping) dan **Fokus** (kirim satu per satu dengan pratinjau langsung), serta tombol **Atur** untuk membuka modal per nomor.
+7. Di HP (layar `<= 760px`), app memakai viewport terkunci (`100dvh`) dengan 4 tab di bar bawah (**Template**, **Susun**, **Pratinjau**, **Kirim**) dan menu utilitas (**Bahasa**, **Tema**, **Ekspor**, **Impor**, **Impor CSV / VCF**, **Bantuan**, **Tentang**) di tombol **Menu** kanan atas. Di mode **Kirim**, tersedia tampilan **Daftar** (kartu penuh tanpa scroll menyamping) dan **Fokus** (kirim satu per satu dengan pratinjau langsung), serta tombol **Atur** untuk membuka modal per nomor.
 8. WhatsApp terbuka dengan teks terisi → **tekan Send sendiri**.
 9. Penghapusan template atau kontak dikonfirmasi langsung di tempat (tekan `Escape` atau **Cancel** untuk membatalkan).
 
@@ -184,7 +184,21 @@ Aturan merge:
 
 ---
 
-## 10. Batasan yang perlu diketahui
+## 10. Tentang
+
+Tombol **Tentang** di header (dan item **Tentang** di menu mobile) membuka modal berisi:
+
+- Nama app, versi (dari `package.json`), dan tahun.
+- Ringkasan fitur.
+- Teknologi: Svelte + Vite, tanpa backend, data hanya di browser.
+- Catatan bahwa app ini bukan produk resmi WhatsApp.
+- Pembuat: nama, link repositori GitHub, dan email.
+
+Tombol **Tutup**, `Escape`, atau klik di luar modal menutupnya.
+
+---
+
+## 11. Batasan yang perlu diketahui
 
 - Tidak bisa kirim otomatis / tanpa klik.
 - Tidak ada sinkron cloud, akun, atau statistik terkirim.
@@ -196,7 +210,7 @@ Aturan merge:
 
 ---
 
-## 11. Untuk pengembang
+## 12. Untuk pengembang
 
 ```bash
 npm install
