@@ -31,5 +31,6 @@ Atau manual: `npx wrangler pages deploy dist`
 
 - `wa-broadcast:v1` — template + kontak
 - `wa-broadcast:lang` — bahasa
+- `wa-broadcast:theme` — tema terang/gelap
 
 Jangan ubah nama key tanpa migrasi. Naikkan `schemaVersion` bila bentuk data berubah.

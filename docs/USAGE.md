@@ -9,12 +9,13 @@ Tidak ada backend. Tidak ada pengiriman otomatis.
 
 ## 1. Alur singkat
 
-1. Buat template (`+ New template`).
-2. Tulis pesan. Pakai `{{nama}}` untuk nama kontak dan `{{variabel}}` lain sesuai kebutuhan.
+1. Buat template (**New template**).
+2. Tulis pesan. Pakai bilah format untuk `*tebal*`, `_miring_`, `~coret~`, atau `` `kode` ``, serta `{{nama}}` untuk nama kontak dan `{{variabel}}` lain sesuai kebutuhan.
 3. Isi nilai global (dipakai kalau kontak tidak punya nilai sendiri).
 4. Tambah penerima: tempel baris atau tambah satu per satu.
-5. Klik **Open WhatsApp** di baris penerima.
+5. Klik atau fokuskan baris untuk melihat pratinjau pesan, lalu klik **Open WhatsApp**.
 6. WhatsApp terbuka dengan teks terisi → **tekan Send sendiri**.
+7. Penghapusan template atau kontak dikonfirmasi langsung di tempat (tekan `Escape` atau **Cancel** untuk membatalkan).
 
 ---
 
@@ -84,9 +85,9 @@ Contoh:
 
 ## 4. Badge dan status
 
-- Kolom nilai kosong diberi garis kuning. Pesan tetap bisa dikirim, variabelnya jadi kosong.
-- Tanda `✓` di kolom nomor = nomor itu sudah dibuka di WhatsApp untuk template aktif. Ini penanda lokal, **bukan** bukti pesan terkirim.
-- Badge ini hilang kalau kontak dihapus atau data diimpor ulang.
+- Kolom nilai kosong diberi garis batas kuning/amber lembut. Pesan tetap bisa dikirim, variabelnya jadi kosong.
+- Badge **Opened** (atau **Dibuka** di mode Indonesia) di kolom nomor = nomor itu sudah dibuka di WhatsApp untuk template aktif. Ini penanda lokal, **bukan** bukti pesan terkirim.
+- Badge ini hilang kalau kontak dihapus atau data diimpor dengan mode **Replace all**.
 
 ---
 
@@ -108,7 +109,7 @@ https://api.whatsapp.com/send?phone=6289698129722&text=<pesan ter-encode>
 ## 6. Penyimpanan
 
 - Data disimpan di `localStorage` browser: key `wa-broadcast:v1`.
-- Bahasa disimpan terpisah: key `wa-broadcast:lang`.
+- Bahasa (`wa-broadcast:lang`) dan tema tampilan (`wa-broadcast:theme`) disimpan terpisah per perangkat.
 - Data **per browser per perangkat**. Buka di HP lain = kosong.
 - Hilang kalau browsing data dibersihkan atau mode private.
 - Kapasitas ~5 MB. Ratusan kontak aman.
@@ -120,7 +121,7 @@ Pindah perangkat: pakai **Export** lalu **Import**.
 ## 7. Export / Import
 
 **Export** membuat file `wa-broadcast-backup-YYYY-MM-DD.json` berisi semua template dan kontak.
-Preferensi bahasa tidak ikut.
+Preferensi bahasa dan tema tidak ikut.
 
 **Import** memvalidasi file dulu, lalu menawarkan dua mode:
 
@@ -134,14 +135,15 @@ Aturan merge:
 - Template: lokal menang saat `id` atau nama sama.
 - Kontak: lokal menang saat nomor sama; `name` dan nilai yang kosong diisi dari file.
 - Global: hanya key yang belum ada.
-- Bahasa perangkat tidak berubah.
+- Bahasa dan tema perangkat tidak berubah.
 
 ---
 
-## 8. Bahasa
+## 8. Bahasa dan tema
 
-- Default English.
-- Selector di header → English / Indonesia.
+- Default English dan tema terang (light).
+- Switch **EN | ID** di header → English / Indonesia.
+- Tombol ikon matahari/bulan di header → ganti tema terang / gelap.
 - Pilihan tersimpan per perangkat dan tetap setelah refresh.
 - Tambah bahasa baru: tambah objek kamus di `src/lib/i18n.svelte.js`.
 
