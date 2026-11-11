@@ -3084,6 +3084,12 @@ td.actions {
     align-content: start;
   }
 
+  /* No template yet: center the empty state in the viewport instead of pinning it to the top. */
+  .page.no-template[data-mobile-tab='compose'] .mobile-viewport,
+  .page.no-template[data-mobile-tab='preview'] .mobile-viewport {
+    align-content: center;
+  }
+
   .mobile-tpl-bar {
     display: flex;
     align-items: flex-end;

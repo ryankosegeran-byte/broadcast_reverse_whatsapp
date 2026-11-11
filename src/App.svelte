@@ -610,7 +610,7 @@
   }
 </script>
 
-<div class="page" data-mobile-tab={mobileTab}>
+<div class="page" class:no-template={!active} data-mobile-tab={mobileTab}>
   <header class="topbar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">
