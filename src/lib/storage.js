@@ -1,4 +1,5 @@
 import { normalizePhone, isValidPhone } from './wa.js'
+import { mergeContacts } from './contacts.js'
 
 export const SCHEMA_VERSION = 2
 export const DATA_KEY = 'wa-broadcast:v1'
@@ -142,29 +143,7 @@ export function mergeStates(local, incoming) {
     }
   }
 
-  const byPhone = new Map(local.contacts.map((c) => [c.phone, c]))
-  for (const c of incoming.contacts) {
-    const existing = byPhone.get(c.phone)
-    if (!existing) {
-      local.contacts.push(c)
-      byPhone.set(c.phone, c)
-      continue
-    }
-    if (!existing.name && c.name) existing.name = c.name
-    existing.labels ??= []
-    for (const l of c.labels ?? []) if (!existing.labels.includes(l)) existing.labels.push(l)
-    for (const [templateId, values] of Object.entries(c.values ?? {})) {
-      existing.values[templateId] ??= {}
-      for (const [key, value] of Object.entries(values ?? {})) {
-        if (!existing.values[templateId][key]) existing.values[templateId][key] = value
-      }
-    }
-    for (const [templateId, when] of Object.entries(c.sentAt ?? {})) {
-      if (!existing.sentAt[templateId] || existing.sentAt[templateId] < when) {
-        existing.sentAt[templateId] = when
-      }
-    }
-  }
+  mergeContacts(local.contacts, incoming.contacts)
 
   local.updatedAt = new Date().toISOString()
   return local

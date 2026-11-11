@@ -1753,6 +1753,54 @@ td.actions {
   animation: dialog-in var(--duration-standard) var(--ease-enter) both;
 }
 
+.modal-card.modal-wide {
+  width: min(100%, 720px);
+}
+
+.import-drop {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+  transition: border-color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
+}
+
+.import-drop.dragging {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.import-section {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.import-map-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+.import-map-grid .field {
+  margin-bottom: 0;
+}
+
+.import-preview-wrap {
+  max-height: 240px;
+}
+
+.import-preview-table {
+  min-width: 440px;
+}
+
+.invalid-cell {
+  color: var(--danger);
+}
+
 .modal-header {
   display: flex;
   align-items: flex-start;
@@ -2127,7 +2175,7 @@ td.actions {
     max-width: none;
   }
 
-  .table-wrap,
+  .table-wrap:not(.import-preview-wrap),
   .desktop-count {
     display: none;
   }

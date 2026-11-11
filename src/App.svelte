@@ -4,11 +4,13 @@
   import { render, resolve, templateVarKeys, varLabel } from './lib/vars.js'
   import { normalizePhone, isValidPhone, buildWaUrl } from './lib/wa.js'
   import { wrapMarker } from './lib/waFormat.js'
+  import { uniqueLabels, mergeContacts } from './lib/contacts.js'
   import { t, lang, setLang, applyLang } from './lib/i18n.svelte.js'
   import Icon from './lib/Icon.svelte'
   import Preview from './lib/Preview.svelte'
   import RecipientTable from './lib/RecipientTable.svelte'
   import ImportDialog from './lib/ImportDialog.svelte'
+  import ContactImport from './lib/ContactImport.svelte'
   import HelpModal from './lib/HelpModal.svelte'
   import EmojiPicker from './lib/EmojiPicker.svelte'
 
@@ -26,6 +28,7 @@
   let pasteText = $state('')
   let newVar = $state('')
   let showImport = $state(false)
+  let showContactImport = $state(false)
   let importData = $state(null)
   let importInfo = $state(null)
   let confirmTplId = $state(null)
@@ -46,12 +49,6 @@
   let fileEl = $state(null)
   let bodyCursor = null
   let noticeTimer
-
-  function uniqueLabels(contacts) {
-    const set = new Set()
-    for (const c of contacts) for (const l of c.labels ?? []) if (l) set.add(l)
-    return [...set].sort((a, b) => a.localeCompare(b))
-  }
 
   let active = $derived(data.templates.find((x) => x.id === activeId) ?? null)
   let vars = $derived(active ? templateVarKeys(active) : [])
@@ -461,6 +458,13 @@
     showImport = false
     store.saveNow(data)
     notify(t('importDone'))
+  }
+
+  function doImportContacts(contacts, stats) {
+    const { added, merged } = mergeContacts(data.contacts, contacts)
+    labelFilter = labelFilter.filter((l) => uniqueLabels(data.contacts).includes(l))
+    showContactImport = false
+    notify(t('importContactsDone', { added, merged, bad: stats.bad }))
   }
 
   function togglePaste() {
@@ -993,6 +997,14 @@
         <h2>{t('recipients')}</h2>
         <div class="row gap wrap">
           <button
+            class="btn sm secondary"
+            type="button"
+            onclick={() => (showContactImport = true)}
+          >
+            <Icon name="upload" size={14} />
+            <span>{t('importContacts')}</span>
+          </button>
+          <button
             class="btn sm {showPaste ? 'active-toggle' : 'secondary'}"
             type="button"
             aria-expanded={showPaste}
@@ -1167,5 +1179,16 @@
     onMerge={doMerge}
     onExportFirst={exportAll}
     onCancel={() => (showImport = false)}
+  />
+{/if}
+
+{#if showContactImport}
+  <ContactImport
+    template={active}
+    templateId={active?.id ?? null}
+    varKeys={valueVars}
+    {t}
+    onImport={doImportContacts}
+    onCancel={() => (showContactImport = false)}
   />
 {/if}
