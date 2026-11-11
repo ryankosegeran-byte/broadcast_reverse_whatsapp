@@ -1007,8 +1007,7 @@
           </div>
 
           <div class="var-hints">
-            <p class="hint">{t('insertHint')}</p>
-            <p class="hint">{t('nameBuiltinHint')}</p>
+            <p class="hint">{t('insertHint')} {t('nameBuiltinHint')}</p>
           </div>
 
           {#if valueVars.length}
@@ -1046,8 +1045,8 @@
                   </div>
                 </div>
               {/each}
+              <p class="hint var-global-hint">{t('globalHint')}</p>
             </div>
-            <p class="hint">{t('globalHint')}</p>
           {/if}
         </section>
       {/if}
@@ -1085,7 +1084,7 @@
           <input class="input" bind:this={nameEl} bind:value={active.name} placeholder={t('namePlaceholder')} />
         </label>
 
-        <div class="field">
+        <div class="field editor-body-field">
           <div class="field-head">
             <label class="field-label" for="msg-body">{t('messageBody')}</label>
             <div class="format-bar" role="toolbar" aria-label={t('messageBody')}>
