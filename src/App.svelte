@@ -31,12 +31,17 @@
   let confirmTplId = $state(null)
   let confirmTplEl = $state(null)
   let showEmoji = $state(false)
+  let mobileTab = $state('compose')
+  let showMobileMenu = $state(false)
   let form = $state({ phone: '', name: '', values: {} })
   let theme = $state(readTheme())
 
   let nameEl = $state(null)
   let bodyEl = $state(null)
   let emojiBtnEl = $state(null)
+  let mobileMenuEl = $state(null)
+  let mobileMenuBtnEl = $state(null)
+  let viewportEl = $state(null)
   let fileEl = $state(null)
   let bodyCursor = null
   let noticeTimer
@@ -118,8 +123,21 @@
       if (confirmTplId && confirmTplEl && !confirmTplEl.contains(e.target)) {
         confirmTplId = null
       }
+      if (
+        showMobileMenu &&
+        mobileMenuEl &&
+        !mobileMenuEl.contains(e.target) &&
+        (!mobileMenuBtnEl || !mobileMenuBtnEl.contains(e.target))
+      ) {
+        showMobileMenu = false
+      }
     }
     const onKeyDown = (e) => {
+      if (e.key === 'Escape' && showMobileMenu) {
+        e.preventDefault()
+        closeMobileMenu(true)
+        return
+      }
       if (e.key === 'Escape' && confirmTplId) {
         confirmTplId = null
       }
@@ -151,6 +169,18 @@
     blockedUrl = ''
   }
 
+  function switchMobileTab(tab) {
+    mobileTab = tab
+    showEmoji = false
+    showMobileMenu = false
+    tick().then(() => viewportEl?.scrollTo(0, 0))
+  }
+
+  function closeMobileMenu(restoreFocus = false) {
+    showMobileMenu = false
+    if (restoreFocus) tick().then(() => mobileMenuBtnEl?.focus())
+  }
+
   function newTemplate() {
     const now = new Date().toISOString()
     const tpl = { id: store.uid('tpl'), name: '', body: '', globals: {}, createdAt: now, updatedAt: now }
@@ -159,14 +189,26 @@
     previewId = null
     confirmTplId = null
     showEmoji = false
+    showMobileMenu = false
     bodyCursor = null
-    tick().then(() => nameEl?.focus())
+    if (typeof window !== 'undefined' && window.innerWidth <= 760) {
+      mobileTab = 'compose'
+      tick().then(() => {
+        viewportEl?.scrollTo(0, 0)
+        nameEl?.focus()
+      })
+    } else {
+      tick().then(() => nameEl?.focus())
+    }
   }
 
-  function selectTemplate(id) {
+  function selectTemplate(id, fromMobileList = false) {
     activeId = id
     showEmoji = false
     bodyCursor = null
+    if (fromMobileList && typeof window !== 'undefined' && window.innerWidth <= 760) {
+      switchMobileTab('compose')
+    }
   }
 
   function confirmDeleteTemplate(id) {
@@ -384,7 +426,7 @@
   }
 </script>
 
-<div class="page">
+<div class="page" data-mobile-tab={mobileTab}>
   <header class="topbar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">
@@ -448,7 +490,125 @@
       </button>
       <input bind:this={fileEl} type="file" accept=".json,application/json" hidden onchange={onImportFile} />
     </div>
+
+    <div class="mobile-header-actions">
+      <button
+        class="btn icon-btn secondary sm"
+        type="button"
+        onclick={toggleTheme}
+        aria-label={theme === 'dark' ? t('switchToLight') : t('switchToDark')}
+        title={theme === 'dark' ? t('switchToLight') : t('switchToDark')}
+      >
+        <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15} />
+      </button>
+      <button
+        bind:this={mobileMenuBtnEl}
+        class="btn secondary sm mobile-menu-btn"
+        class:active-toggle={showMobileMenu}
+        type="button"
+        aria-expanded={showMobileMenu}
+        aria-haspopup="dialog"
+        aria-label={showMobileMenu ? t('closeMenu') : t('menu')}
+        onclick={() => (showMobileMenu = !showMobileMenu)}
+      >
+        <Icon name={showMobileMenu ? 'x' : 'menu'} size={16} />
+        <span class="mobile-menu-btn-label">{t('menu')}</span>
+      </button>
+    </div>
   </header>
+
+  {#if showMobileMenu}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="mobile-menu-backdrop" onclick={() => closeMobileMenu(false)}></div>
+    <div
+      class="mobile-menu"
+      bind:this={mobileMenuEl}
+      role="dialog"
+      aria-label={t('menu')}
+    >
+      <div class="mobile-menu-intro">
+        <p class="mobile-menu-tagline">{t('tagline')}</p>
+        <p class="hint">{t('devicesNote')}</p>
+      </div>
+
+      <div class="mobile-menu-row">
+        <span class="mobile-menu-label">{t('language')}</span>
+        <div
+          class="segmented"
+          role="group"
+          aria-label={t('language')}
+          style="--seg-idx: {lang() === 'id' ? 1 : 0}"
+        >
+          <span class="segmented-thumb" aria-hidden="true"></span>
+          <button
+            type="button"
+            class="segmented-btn"
+            aria-pressed={lang() === 'en'}
+            onclick={() => setLang('en')}
+          >
+            EN
+          </button>
+          <button
+            type="button"
+            class="segmented-btn"
+            aria-pressed={lang() === 'id'}
+            onclick={() => setLang('id')}
+          >
+            ID
+          </button>
+        </div>
+      </div>
+
+      <div class="mobile-menu-row">
+        <span class="mobile-menu-label">{t('themeLabel')}</span>
+        <button
+          class="btn secondary sm"
+          type="button"
+          onclick={toggleTheme}
+        >
+          <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={14} />
+          <span>{theme === 'dark' ? t('themeDark') : t('themeLight')}</span>
+        </button>
+      </div>
+
+      <div class="mobile-menu-actions">
+        <button
+          class="mobile-menu-item"
+          type="button"
+          onclick={() => {
+            showMobileMenu = false
+            exportAll()
+          }}
+        >
+          <Icon name="download" size={16} />
+          <span>{t('export')}</span>
+        </button>
+        <button
+          class="mobile-menu-item"
+          type="button"
+          onclick={() => {
+            showMobileMenu = false
+            fileEl?.click()
+          }}
+        >
+          <Icon name="upload" size={16} />
+          <span>{t('import')}</span>
+        </button>
+        <button
+          class="mobile-menu-item"
+          type="button"
+          onclick={() => {
+            showMobileMenu = false
+            showHelp = true
+          }}
+        >
+          <Icon name="help" size={16} />
+          <span>{t('help')}</span>
+        </button>
+      </div>
+    </div>
+  {/if}
 
   {#if notice}
     <div class="alert-banner" role="status" aria-live="polite">
@@ -469,6 +629,7 @@
     </div>
   {/if}
 
+  <div class="mobile-viewport" bind:this={viewportEl}>
   <main class="workspace" class:single={!active}>
     <aside class="panel sidebar" aria-label={t('templates')}>
       <div class="panel-head">
@@ -502,7 +663,7 @@
                   </div>
                 </div>
               {:else}
-                <button class="tpl-name" type="button" onclick={() => selectTemplate(tpl.id)}>
+                <button class="tpl-name" type="button" onclick={() => selectTemplate(tpl.id, true)}>
                   {tpl.name || t('untitled')}
                 </button>
                 <button
@@ -523,6 +684,31 @@
 
     {#if active}
       <section class="panel editor" aria-label={t('messageBody')}>
+        <div class="mobile-tpl-bar">
+          <label class="mobile-tpl-picker">
+            <span class="mobile-tpl-caption">{t('activeTemplate')}</span>
+            <select
+              class="input mobile-tpl-select"
+              value={activeId}
+              aria-label={t('activeTemplate')}
+              onchange={(e) => selectTemplate(e.currentTarget.value)}
+            >
+              {#each data.templates as tpl (tpl.id)}
+                <option value={tpl.id}>{tpl.name || t('untitled')}</option>
+              {/each}
+            </select>
+          </label>
+          <button
+            class="btn icon-btn secondary sm"
+            type="button"
+            title={t('newTemplate')}
+            aria-label={t('newTemplate')}
+            onclick={newTemplate}
+          >
+            <Icon name="plus" size={14} />
+          </button>
+        </div>
+
         <label class="field">
           <span class="field-label">{t('templateName')}</span>
           <input class="input" bind:this={nameEl} bind:value={active.name} placeholder={t('namePlaceholder')} />
@@ -652,6 +838,21 @@
       </section>
 
       <aside class="panel preview-panel" aria-label={t('preview')}>
+        {#if data.contacts.length > 1}
+          <label class="mobile-preview-picker">
+            <span class="mobile-tpl-caption">{t('recipients')}</span>
+            <select
+              class="input mobile-tpl-select"
+              value={previewContact?.id ?? ''}
+              aria-label={t('recipients')}
+              onchange={(e) => (previewId = e.currentTarget.value)}
+            >
+              {#each data.contacts as c (c.id)}
+                <option value={c.id}>{c.name ? `${c.name} (${c.phone})` : c.phone}</option>
+              {/each}
+            </select>
+          </label>
+        {/if}
         <Preview
           text={previewText}
           emptyLabel={t('previewEmpty')}
@@ -664,6 +865,18 @@
             <span>{t('emptyValueWarn')}</span>
           </div>
         {/if}
+        <div class="mobile-preview-actions">
+          {#if previewContact}
+            <button class="btn wa sm rcard-send" type="button" onclick={() => openWa(previewContact)}>
+              <Icon name="external" size={14} />
+              <span>{t('openWa')}</span>
+            </button>
+          {/if}
+          <button class="btn secondary sm" type="button" onclick={() => switchMobileTab('send')}>
+            <Icon name="send" size={14} />
+            <span>{t('goToSend')}</span>
+          </button>
+        </div>
       </aside>
     {:else}
       <section class="panel empty-panel">
@@ -690,6 +903,30 @@
 
   {#if active}
     <section class="panel recipients" aria-label={t('recipients')}>
+      <div class="mobile-tpl-bar">
+        <label class="mobile-tpl-picker">
+          <span class="mobile-tpl-caption">{t('activeTemplate')}</span>
+          <select
+            class="input mobile-tpl-select"
+            value={activeId}
+            aria-label={t('activeTemplate')}
+            onchange={(e) => selectTemplate(e.currentTarget.value)}
+          >
+            {#each data.templates as tpl (tpl.id)}
+              <option value={tpl.id}>{tpl.name || t('untitled')}</option>
+            {/each}
+          </select>
+        </label>
+        <button
+          class="btn secondary sm"
+          type="button"
+          onclick={() => switchMobileTab('compose')}
+        >
+          <Icon name="edit" size={14} />
+          <span>{t('navCompose')}</span>
+        </button>
+      </div>
+
       <div class="panel-head wrap">
         <h2>{t('recipients')}</h2>
         <div class="row gap wrap">
@@ -792,6 +1029,7 @@
         contacts={data.contacts}
         template={active}
         vars={valueVars}
+        focusedId={previewContact?.id ?? null}
         {t}
         onOpen={openWa}
         onDelete={deleteContact}
@@ -799,6 +1037,55 @@
       />
     </section>
   {/if}
+  </div>
+
+  <nav class="mobile-nav" aria-label={t('navLabel')}>
+    <button
+      type="button"
+      class="mobile-nav-btn"
+      class:active={mobileTab === 'templates'}
+      aria-current={mobileTab === 'templates' ? 'page' : undefined}
+      onclick={() => switchMobileTab('templates')}
+    >
+      <Icon name="file" size={18} />
+      <span class="mobile-nav-label">{t('navTemplates')}</span>
+    </button>
+    <button
+      type="button"
+      class="mobile-nav-btn"
+      class:active={mobileTab === 'compose'}
+      aria-current={mobileTab === 'compose' ? 'page' : undefined}
+      onclick={() => switchMobileTab('compose')}
+    >
+      <Icon name="edit" size={18} />
+      <span class="mobile-nav-label">{t('navCompose')}</span>
+    </button>
+    <button
+      type="button"
+      class="mobile-nav-btn"
+      class:active={mobileTab === 'preview'}
+      aria-current={mobileTab === 'preview' ? 'page' : undefined}
+      onclick={() => switchMobileTab('preview')}
+    >
+      <Icon name="eye" size={18} />
+      <span class="mobile-nav-label">{t('navPreview')}</span>
+    </button>
+    <button
+      type="button"
+      class="mobile-nav-btn"
+      class:active={mobileTab === 'send'}
+      aria-current={mobileTab === 'send' ? 'page' : undefined}
+      onclick={() => switchMobileTab('send')}
+    >
+      <span class="mobile-nav-icon-wrap">
+        <Icon name="send" size={18} />
+        {#if data.contacts.length > 0}
+          <span class="mobile-nav-count tabular">{data.contacts.length}</span>
+        {/if}
+      </span>
+      <span class="mobile-nav-label">{t('navSend')}</span>
+    </button>
+  </nav>
 </div>
 
 {#if showHelp}

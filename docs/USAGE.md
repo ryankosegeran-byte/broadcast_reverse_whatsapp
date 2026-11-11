@@ -14,8 +14,9 @@ Tidak ada backend. Tidak ada pengiriman otomatis.
 3. Isi nilai global (dipakai kalau kontak tidak punya nilai sendiri).
 4. Tambah penerima: tempel baris atau tambah satu per satu.
 5. Klik atau fokuskan baris untuk melihat pratinjau pesan, lalu klik **Open WhatsApp**.
-6. WhatsApp terbuka dengan teks terisi → **tekan Send sendiri**.
-7. Penghapusan template atau kontak dikonfirmasi langsung di tempat (tekan `Escape` atau **Cancel** untuk membatalkan).
+6. Di HP (layar `<= 760px`), app memakai viewport terkunci (`100dvh`) dengan 4 tab di bar bawah (**Template**, **Susun**, **Pratinjau**, **Kirim**) dan menu utilitas (**Bahasa**, **Tema**, **Ekspor**, **Impor**, **Bantuan**) di tombol **Menu** kanan atas. Di mode **Kirim**, tersedia tampilan **Daftar** (kartu penuh tanpa scroll menyamping) dan **Fokus** (kirim satu per satu dengan pratinjau langsung).
+7. WhatsApp terbuka dengan teks terisi → **tekan Send sendiri**.
+8. Penghapusan template atau kontak dikonfirmasi langsung di tempat (tekan `Escape` atau **Cancel** untuk membatalkan).
 
 ---
 
