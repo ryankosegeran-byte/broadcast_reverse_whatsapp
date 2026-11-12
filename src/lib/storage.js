@@ -1,14 +1,21 @@
 import { normalizePhone, isValidPhone } from './wa.js'
 import { mergeContacts, uniqueLabels } from './contacts.js'
+import { normalizeGroups, syncGroups } from './groups.js'
 import { isAutoPreset } from './dates.js'
 
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 export const DATA_KEY = 'wa-broadcast:v1'
 export const LANG_KEY = 'wa-broadcast:lang'
 export const CORRUPT_KEY = 'wa-broadcast:v1:corrupt'
 
 export function emptyState() {
-  return { schemaVersion: SCHEMA_VERSION, updatedAt: new Date().toISOString(), templates: [], contacts: [] }
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    updatedAt: new Date().toISOString(),
+    groups: [],
+    templates: [],
+    contacts: [],
+  }
 }
 
 export function uid(prefix) {
@@ -20,6 +27,7 @@ export function migrate(raw) {
   const state = {
     schemaVersion: SCHEMA_VERSION,
     updatedAt: raw?.updatedAt ?? new Date().toISOString(),
+    groups: normalizeGroups(raw?.groups),
     templates: Array.isArray(raw?.templates) ? raw.templates : [],
     contacts: Array.isArray(raw?.contacts) ? raw.contacts : [],
   }
@@ -61,6 +69,8 @@ export function migrate(raw) {
       sentAt: c.sentAt && typeof c.sentAt === 'object' ? c.sentAt : {},
     }))
     .filter((c) => isValidPhone(c.phone))
+
+  syncGroups(state.groups, state.contacts)
 
   return state
 }
@@ -130,6 +140,7 @@ export function validateState(raw) {
       templates: data.templates.length,
       contacts: data.contacts.length,
       labels: uniqueLabels(data.contacts).length,
+      groups: data.groups.length,
     },
   }
 }
@@ -164,7 +175,33 @@ export function mergeStates(local, incoming) {
     }
   }
 
+  local.groups ??= []
+  const gByName = new Map(local.groups.map((g) => [g.name, g]))
+  const localIds = new Set(local.groups.map((g) => g.id))
+  const incById = new Map((incoming.groups ?? []).map((g) => [g.id, g]))
+  const addedGroups = []
+  for (const g of incoming.groups ?? []) {
+    if (gByName.has(g.name)) continue
+    let id = g.id && !localIds.has(g.id) ? g.id : uid('grp')
+    localIds.add(id)
+    const row = { id, name: g.name, parentId: g.parentId ?? null }
+    local.groups.push(row)
+    gByName.set(row.name, row)
+    addedGroups.push(row)
+  }
+  const localById = new Map(local.groups.map((g) => [g.id, g]))
+  for (const row of addedGroups) {
+    if (!row.parentId) continue
+    const incParent = incById.get(row.parentId)
+    if (incParent) {
+      const target = gByName.get(incParent.name)
+      row.parentId = target && target.id !== row.id ? target.id : null
+    } else if (!localById.has(row.parentId) || row.parentId === row.id) {
+      row.parentId = null
+    }
+  }
   mergeContacts(local.contacts, incoming.contacts)
+  syncGroups(local.groups, local.contacts)
 
   local.updatedAt = new Date().toISOString()
   return local

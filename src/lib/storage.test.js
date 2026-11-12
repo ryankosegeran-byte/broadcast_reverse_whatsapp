@@ -60,15 +60,16 @@ test('merge keeps local contact data and fills only blanks', () => {
   assert.equal(local.contacts[0].sentAt.t1, '2026-05-05T00:00:00.000Z')
 })
 
-test('migrate upgrades v1 to v3 with labels, vars, and auto', () => {
+test('migrate upgrades v1 to v4 with labels, vars, auto, and groups', () => {
   const state = migrate({
     templates: [{ name: 'A', body: '{{x}}' }],
     contacts: [{ phone: '62811111', name: 'Budi' }],
   })
-  assert.equal(state.schemaVersion, 3)
+  assert.equal(state.schemaVersion, 4)
   assert.deepEqual(state.templates[0].vars, [])
   assert.deepEqual(state.templates[0].auto, {})
   assert.deepEqual(state.contacts[0].labels, [])
+  assert.deepEqual(state.groups, [])
 })
 
 test('migrate normalises labels and validates vars', () => {
@@ -78,6 +79,7 @@ test('migrate normalises labels and validates vars', () => {
   })
   assert.deepEqual(state.templates[0].vars, [{ key: 'x', label: 'X' }])
   assert.deepEqual(state.contacts[0].labels, ['VIP'])
+  assert.deepEqual(state.groups.map((g) => g.name), ['VIP'])
 })
 
 test('mergeStates merges template vars and unions contact labels', () => {
@@ -106,8 +108,8 @@ test('validateState returns template, contact, and unique label counts for v1 an
     contacts: [{ phone: '0811111111', name: 'Budi' }],
   })
   assert.equal(v1.ok, true)
-  assert.equal(v1.data.schemaVersion, 3)
-  assert.deepEqual(v1.counts, { templates: 1, contacts: 1, labels: 0 })
+  assert.equal(v1.data.schemaVersion, 4)
+  assert.deepEqual(v1.counts, { templates: 1, contacts: 1, labels: 0, groups: 0 })
 
   const v2 = validateState({
     schemaVersion: 2,
@@ -118,8 +120,8 @@ test('validateState returns template, contact, and unique label counts for v1 an
     ],
   })
   assert.equal(v2.ok, true)
-  assert.equal(v2.data.schemaVersion, 3)
-  assert.deepEqual(v2.counts, { templates: 1, contacts: 2, labels: 2 })
+  assert.equal(v2.data.schemaVersion, 4)
+  assert.deepEqual(v2.counts, { templates: 1, contacts: 2, labels: 2, groups: 2 })
 })
 
 test('migrate keeps valid auto presets and drops invalid ones', () => {
@@ -159,4 +161,44 @@ test('mergeStates fills missing auto entries and keeps local ones', () => {
   mergeStates(local, incoming)
 
   assert.deepEqual(local.templates[0].auto, { bulan: 'monthNum', tahun: 'year' })
+})
+
+test('migrate derives a top-level group per label', () => {
+  const state = migrate({
+    contacts: [
+      { phone: '6281111111', name: 'A', labels: ['Kue', 'Agape'] },
+      { phone: '6282222222', name: 'B', labels: ['Kue'] },
+    ],
+  })
+  assert.deepEqual(state.groups.map((g) => g.name).sort(), ['Agape', 'Kue'])
+  assert.ok(state.groups.every((g) => g.parentId === null))
+})
+
+test('mergeStates unions groups and keeps local parents', () => {
+  const local = emptyState()
+  local.groups.push({ id: 'k', name: 'Kue', parentId: null })
+  local.contacts.push({ id: 'c1', phone: '628111', name: '', labels: ['Agape'], values: {}, sentAt: {} })
+  const incoming = emptyState()
+  incoming.groups.push({ id: 'a', name: 'Agape', parentId: 'k' })
+  incoming.groups.push({ id: 'b', name: 'Bolu', parentId: null })
+
+  mergeStates(local, incoming)
+
+  const names = local.groups.map((g) => g.name)
+  assert.ok(names.includes('Agape'))
+  assert.ok(names.includes('Bolu'))
+  assert.equal(local.groups.find((g) => g.name === 'Agape').parentId, 'k')
+})
+
+test('mergeStates remaps incoming subgroup parentId onto local group id on name clash', () => {
+  const local = emptyState()
+  local.groups.push({ id: 'k_local', name: 'Kue', parentId: null })
+  const incoming = emptyState()
+  incoming.groups.push({ id: 'a_remote', name: 'Agape', parentId: 'k_remote' })
+  incoming.groups.push({ id: 'k_remote', name: 'Kue', parentId: null })
+
+  mergeStates(local, incoming)
+
+  assert.equal(local.groups.filter((g) => g.name === 'Kue').length, 1)
+  assert.equal(local.groups.find((g) => g.name === 'Agape').parentId, 'k_local')
 })

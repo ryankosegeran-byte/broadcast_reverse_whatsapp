@@ -15,7 +15,7 @@ Tidak ada backend. Tidak ada pengiriman otomatis.
 4. Di tampilan desktop, panel **Penerima** berada di bawah daftar **Template** (kolom kiri) dengan kotak pencarian yang selalu tampil dan tombol **+ Tambah**, **Tempel**, serta **CSV/VCF** yang membuka dialog mengambang terpisah di luar box daftar kontak.
 5. Saring penerima lewat chip label atau pencarian, dan centang kontak tertentu jika hanya ingin mengirim ke subset kontak.
 6. Klik kontak di daftar untuk mempratinjau pesannya di panel kanan, klik **Atur** (atau klik ganda baris kontak) untuk membuka modal per nomor berisi tiga bagian terpisah (**Info kontak**, **Label**, **Variabel template**) beserta pratinjau langsung dan tombol **Sebelumnya / Berikutnya**, lalu klik **Kirim** / **Open WhatsApp**.
-7. Di HP (layar `<= 760px`), app memakai viewport terkunci (`100dvh`) dengan 4 tab di bar bawah (**Template**, **Susun**, **Pratinjau**, **Kirim**) dan menu utilitas (**Bahasa**, **Tema**, **Ekspor**, **Impor**, **Impor CSV / VCF**, **Bantuan**, **Tentang**) di tombol **Menu** kanan atas. Di mode **Kirim**, tersedia tampilan **Daftar** (daftar kontak ringkas siap klik **Kirim** langsung, atau centang penerima lalu aktifkan **Terpilih saja**) dan **Fokus** (kirim satu per satu dengan pratinjau langsung), serta tombol **Atur** untuk membuka modal per nomor.
+7. Di HP (layar `<= 760px`), app memakai viewport terkunci (`100dvh`) dengan 5 tab di bar bawah (**Template**, **Susun**, **Pratinjau**, **Kontak**, **Kirim**) dan menu utilitas (**Bahasa**, **Tema**, **Ekspor**, **Impor**, **Impor CSV / VCF**, **Kontak**, **Bantuan**, **Tentang**) di tombol **Menu** kanan atas. Di desktop, tab **Kontak** dapat dibuka lewat tombol **Kontak** di toolbar kanan atas. Di mode **Kirim**, tersedia tampilan **Daftar** (daftar kontak ringkas siap klik **Kirim** langsung, atau centang penerima lalu aktifkan **Terpilih saja**) dan **Fokus** (kirim satu per satu dengan pratinjau langsung), serta tombol **Atur** untuk membuka modal per nomor.
 8. WhatsApp terbuka dengan teks terisi → **tekan Send sendiri**.
 9. Penghapusan template atau kontak dikonfirmasi langsung di tempat (tekan `Escape` atau **Cancel** untuk membatalkan).
 
@@ -120,26 +120,48 @@ Klik **Import CSV / VCF** di header panel penerima (atau di tombol **Menu** pada
 ## 4. Label, filter, dan seleksi
 
 - **Multi-label per kontak**: setiap kontak dapat memiliki lebih dari satu label bebas (contoh: `VIP`, `Jatuh Tempo`). Tambah atau hapus chip label di modal per nomor (**Atur** → bagian **Label**) dengan saran label yang sudah ada. Warna chip dihitung otomatis dari nama label.
-- **Filter label (OR)**: bila ada minimal satu label pada kontak, bar filter label muncul di atas daftar penerima. Mengklik satu atau lebih chip label menampilkan kontak yang memiliki **salah satu** label yang dipilih (semantik OR). Klik **Clear** atau nonaktifkan chip untuk menampilkan semua kontak kembali. Filter label dapat digabung dengan kotak pencarian nama/nomor.
-- **Seleksi & working set**: setiap baris daftar memiliki kotak centang, disertai **Select all** / **Clear selection** yang berlaku pada daftar yang sedang tampil (setelah filter + pencarian). Bila ada satu atau lebih kontak yang dicentang, muncul bar seleksi untuk menyaring daftar (**Terpilih saja**), melangkah ke mode **Fokus**, serta membatasi navigasi modal pada subset yang dicentang (pilihan bersifat sementara di sesi UI dan tidak ikut disimpan).
+- **Filter label (Semua / Salah satu) & status**: bila ada minimal satu label pada kontak, bar filter label muncul di atas daftar penerima. Secara bawaan mode **Semua label** (AND) menampilkan kontak yang memiliki seluruh label yang dipilih; klik tombol mode untuk beralih ke **Salah satu label** (OR). Klik **Hapus** atau nonaktifkan chip untuk menampilkan semua kontak kembali. Filter label dapat digabung dengan kotak pencarian nama/nomor serta filter status (**Semua** / **Belum terkirim** / **Sudah terkirim**).
+- **Seleksi & working set**: setiap baris daftar memiliki kotak centang, disertai **Select all** / **Clear selection** yang berlaku pada daftar yang sedang tampil (setelah filter label, status, dan pencarian). Bila ada satu atau lebih kontak yang dicentang, muncul bar seleksi untuk menyaring daftar (**Terpilih saja**), melangkah ke mode **Fokus**, serta membatasi navigasi modal pada subset yang dicentang (pilihan bersifat sementara di sesi UI dan tidak ikut disimpan).
 
 ### Modal kelola per nomor
 
 Klik **Atur** (atau klik ganda baris kontak) untuk membuka modal per nomor yang terbagi menjadi 3 bagian:
 
 1. **Info kontak**: ubah nomor (divalidasi & dinormalisasi otomatis saat simpan) dan nama kontak.
-2. **Label**: tambah atau hapus chip label kontak, atau klik chip label yang sudah ada untuk menambahkannya dalam satu klik.
+2. **Label**: tambah atau hapus chip label kontak, atau klik chip label yang sudah ada untuk menambahkannya dalam satu klik (label subgrup otomatis menambahkan label induknya).
 3. **Variabel template**: isi atau ubah nilai khusus untuk template aktif (tersimpan di `values[templateId]`). Kolom tanpa nilai khusus menampilkan nilai bawaan template bila ada, dan tombol **Pakai bawaan** mengembalikan nilai ke default template.
 
 Di sisi kanan modal tampil **Pratinjau** pesan WhatsApp secara langsung, tombol navigasi **Sebelumnya / Berikutnya** untuk berpindah antar nomor tanpa menutup modal, serta tombol **Buka WhatsApp**.
 
 ---
 
+## Grup dan subgrup kontak
+
+Kontak dikelompokkan dengan label. Untuk mengatur per grup dan subgrup:
+
+1. Buka tab **Kontak** (tombol **Kontak** di toolbar desktop, menu mobile, atau ikon **Kontak** di navigasi bawah).
+2. Panel **Grup** di kiri: buat grup baru, atau buka menu (⋯) sebuah grup untuk mengganti nama, menambah subgrup, memindah, atau menghapus.
+3. Tarik satu grup ke grup lain untuk menjadikannya subgrup; tarik ke **Semua kontak** di atas daftar grup untuk mengembalikannya menjadi grup utama. Menu (⋯) → **Jadikan grup utama** atau **Pindah ke bawah** melakukan hal yang sama tanpa tarik (bisa dijangkau lewat keyboard).
+4. Pilih beberapa kontak, lalu pakai bilah pilihan untuk **Tambah label** (menambahkan subgrup otomatis menambahkan label induknya), **Hapus label**, atau **Hapus terpilih**.
+5. Menghapus grup akan membuang label itu dari semua kontak; subgrupnya naik satu tingkat. Mengganti nama grup langsung mengubah label di semua kontak, dan muncul bilah **Batalkan** selama beberapa detik untuk mengembalikan nama sebelumnya.
+
+### Kirim per grup
+
+Di tab **Kirim**, pilih chip label: dengan mode **Semua label** kontak harus punya semua label (mis. `Kue` + `Agape`); dengan **Salah satu label** cukup salah satu. Filter **Semua / Belum terkirim / Sudah terkirim** menyaring berdasarkan template yang aktif.
+
+### Tanda terkirim
+
+Membuka tautan WhatsApp menandai kontak itu terkirim untuk template aktif. Saat filter status di **Semua**, kontak terkirim otomatis berpindah ke bagian **Sudah terkirim (n)** yang terlipat di bawah daftar. Tiap baris (di mode **Daftar** maupun **Fokus**) punya tombol kecil untuk **Tandai terkirim** atau **Batalkan tanda**.
+
+Semua grup dan label ikut tersimpan di backup (Ekspor/Impor JSON), termasuk susunan subgrup, jadi pindah perangkat tetap lengkap.
+
+---
+
 ## 5. Badge dan status
 
 - Badge `{n} kosong` pada baris kontak (atau garis batas kuning/amber pada input di modal) menandakan ada variabel yang masih kosong. Pesan tetap bisa dikirim, variabelnya jadi kosong.
-- Badge **Opened** (atau **Dibuka** di mode Indonesia) pada kontak = nomor itu sudah dibuka di WhatsApp untuk template aktif. Ini penanda lokal, **bukan** bukti pesan terkirim.
-- Badge ini hilang kalau kontak dihapus atau data diimpor dengan mode **Replace all**.
+- Badge **Terkirim** (atau **Sent** di mode English) pada kontak = nomor itu sudah dibuka di WhatsApp atau ditandai manual untuk template aktif. Ini penanda lokal, **bukan** bukti pengiriman resmi dari server WhatsApp.
+- Tanda terkirim bisa dibatalkan lewat tombol kecil di baris kontak, atau hilang kalau kontak dihapus atau data diimpor dengan mode **Replace all**.
 
 ---
 
@@ -172,10 +194,10 @@ Pindah perangkat: pakai **Export** lalu **Import**.
 
 ## 8. Export / Import
 
-**Export** membuat file `wa-broadcast-backup-YYYY-MM-DD.json` berformat `schemaVersion: 3` yang berisi semua template (termasuk definisi variabel `vars`, preset otomatis `auto`, dan nilai bawaan `globals`) serta semua kontak (termasuk `labels`, `values`, dan `sentAt`).
+**Export** membuat file `wa-broadcast-backup-YYYY-MM-DD.json` berformat `schemaVersion: 4` yang berisi semua template (termasuk definisi variabel `vars`, preset otomatis `auto`, dan nilai bawaan `globals`), daftar `groups` (termasuk susunan subgrup), serta semua kontak (termasuk `labels`, `values`, dan `sentAt`).
 Preferensi bahasa dan tema tidak ikut.
 
-**Import** memvalidasi file dulu (menampilkan jumlah template, kontak, dan label yang ditemukan), lalu menawarkan dua mode. File cadangan `schemaVersion: 1` dan `schemaVersion: 2` lama tetap bisa diimpor dan otomatis diupgrade dengan `vars: []`, `auto: {}`, dan `labels: []`:
+**Import** memvalidasi file dulu (menampilkan jumlah template, kontak, dan label yang ditemukan), lalu menawarkan dua mode. File cadangan `schemaVersion: 1`, `2`, dan `3` lama tetap bisa diimpor dan otomatis diupgrade (`vars: []`, `auto: {}`, `labels: []`, serta `groups` disinkronkan dari label kontak):
 
 | Mode | Perilaku |
 |---|---|
@@ -186,6 +208,7 @@ Aturan merge:
 
 - Template: lokal menang saat `id` atau nama sama; `vars` digabung per key (mengisi nama tampilan yang masih kosong dan menambah key baru).
 - Kontak: lokal menang saat nomor sama; `name` dan nilai yang kosong diisi dari file, `labels` digabung (union tanpa duplikat).
+- Grup: digabung per nama grup (grup yang belum ada ikut ditambahkan sambil mempertahankan susunan induk/subgrup bila tersedia).
 - Global: hanya key yang belum ada.
 - Bahasa dan tema perangkat tidak berubah.
 
@@ -222,8 +245,7 @@ Tombol **Tutup**, `Escape`, atau klik di luar modal menutupnya.
 - Tidak bisa lampirkan gambar/file lewat link `text=`.
 - Nomor harus nomor WhatsApp aktif. Link akan menampilkan "nomor tidak terdaftar" kalau salah.
 - Teks sangat panjang bisa dipotong WhatsApp. App memberi peringatan bila URL > 8000 karakter.
-- Impor CSV / VCF mewajibkan satu kolom nomor yang dipetakan; baris tanpa nomor valid akan dilewati.
-- Label bersifat teks bebas per kontak (tidak ada daftar grup/registry terpisah; mengubah nama label dilakukan di masing-masing kontak).
+- Impor CSV / VCF mewajibkan satu kolom nomor yang dipetakan; baris tanpa nomor valid akan dilewati (label hasil impor CSV/VCF masuk sebagai grup utama jika belum terdaftar).
 
 ---
 

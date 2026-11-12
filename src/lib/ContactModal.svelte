@@ -3,6 +3,7 @@
   import { normalizePhone, isValidPhone } from './wa.js'
   import { render, resolve, templateVarKeys, varLabel } from './vars.js'
   import { formatAutoDate, isAutoPreset } from './dates.js'
+  import { expandLabels } from './groups.js'
   import Icon from './Icon.svelte'
   import Preview from './Preview.svelte'
 
@@ -12,6 +13,7 @@
     vars = [],
     allContacts = [],
     labelPool = [],
+    groups = [],
     navList = [],
     lang = undefined,
     t,
@@ -43,7 +45,9 @@
   )
   let isSent = $derived(Boolean(template && contact?.sentAt?.[template.id]))
   let availableLabels = $derived(
-    labelPool.filter((l) => !(contact?.labels ?? []).includes(l))
+    [...new Set([...labelPool, ...groups.map((g) => g.name)])]
+      .filter((l) => l && !(contact?.labels ?? []).includes(l))
+      .sort((a, b) => a.localeCompare(b))
   )
 
   onMount(() => {
@@ -116,7 +120,8 @@
     const text = String(raw ?? '').trim()
     if (!text) return
     contact.labels ??= []
-    for (const part of text.split(/[;|,]/).map((s) => s.trim()).filter(Boolean)) {
+    const parts = text.split(/[;|,]/).map((s) => s.trim()).filter(Boolean)
+    for (const part of expandLabels(groups, parts)) {
       if (!contact.labels.includes(part)) contact.labels.push(part)
     }
   }

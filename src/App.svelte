@@ -6,10 +6,21 @@
   import { normalizePhone, isValidPhone, buildWaUrl } from './lib/wa.js'
   import { wrapMarker } from './lib/waFormat.js'
   import { uniqueLabels, mergeContacts } from './lib/contacts.js'
+  import {
+    filterByLabels,
+    assignLabels,
+    expandLabels,
+    renameLabel,
+    deleteLabel,
+    createGroup,
+    setGroupParent,
+    syncGroups,
+  } from './lib/groups.js'
   import { t, lang, setLang, applyLang } from './lib/i18n.svelte.js'
   import Icon from './lib/Icon.svelte'
   import Preview from './lib/Preview.svelte'
   import RecipientTable from './lib/RecipientTable.svelte'
+  import ContactsView from './lib/ContactsView.svelte'
   import ImportDialog from './lib/ImportDialog.svelte'
   import ContactImport from './lib/ContactImport.svelte'
   import ContactModal from './lib/ContactModal.svelte'
@@ -51,6 +62,9 @@
   let form = $state({ phone: '', name: '', values: {} })
   let theme = $state(readTheme())
   let labelFilter = $state([])
+  let labelMode = $state('and')
+  let labelUndo = $state(null)
+  let undoTimer
 
   let nameEl = $state(null)
   let bodyEl = $state(null)
@@ -78,11 +92,7 @@
   let vars = $derived(active ? templateVarKeys(active) : [])
   let valueVars = $derived(vars.filter((v) => v !== 'nama'))
   let labelPool = $derived(uniqueLabels(data.contacts))
-  let filteredContacts = $derived(
-    labelFilter.length === 0
-      ? data.contacts
-      : data.contacts.filter((c) => labelFilter.some((l) => (c.labels ?? []).includes(l)))
-  )
+  let filteredContacts = $derived(filterByLabels(data.contacts, labelFilter, labelMode))
   let previewContact = $derived(
     filteredContacts.find((c) => c.id === previewId) ?? filteredContacts[0] ?? null
   )
@@ -153,6 +163,13 @@
   $effect(() => {
     JSON.stringify(data)
     store.scheduleSave(data)
+  })
+
+  $effect(() => {
+    data.groups ??= []
+    const names = new Set(data.groups.map((g) => g.name))
+    const missing = uniqueLabels(data.contacts).some((l) => !names.has(l))
+    if (missing) syncGroups(data.groups, data.contacts)
   })
 
   $effect(() => {
@@ -515,6 +532,78 @@
       : [...labelFilter, label]
   }
 
+  function toggleLabelMode(mode) {
+    labelMode = mode
+  }
+
+  function assignLabelsTo(ids, labels, mode) {
+    const names = mode === 'remove' ? labels : expandLabels(data.groups, labels)
+    const changed = assignLabels(data.contacts, ids, names, mode)
+    if (mode !== 'remove') syncGroups(data.groups, data.contacts)
+    notify(t('contactsUpdated', { n: changed }))
+  }
+
+  function renameGroupName(from, to) {
+    const oldName = String(from ?? '').trim()
+    const newName = String(to ?? '').trim()
+    if (!oldName || !newName || oldName === newName) return
+    if (data.groups.some((g) => g.name === newName)) {
+      notify(t('groupNameExists'))
+      return
+    }
+    renameLabel(data.groups, data.contacts, oldName, newName)
+    labelFilter = labelFilter.map((l) => (l === oldName ? newName : l))
+    labelUndo = { from: oldName, to: newName }
+    clearTimeout(undoTimer)
+    undoTimer = setTimeout(() => (labelUndo = null), 8000)
+  }
+
+  function undoRenameGroup() {
+    if (!labelUndo) return
+    const { from, to } = labelUndo
+    if (data.groups.some((g) => g.name === from)) {
+      notify(t('groupNameExists'))
+      labelUndo = null
+      clearTimeout(undoTimer)
+      return
+    }
+    renameLabel(data.groups, data.contacts, to, from)
+    labelFilter = labelFilter.map((l) => (l === to ? from : l))
+    labelUndo = null
+    clearTimeout(undoTimer)
+  }
+
+  function removeGroup(name) {
+    deleteLabel(data.groups, data.contacts, name)
+    labelFilter = labelFilter.filter((l) => l !== name)
+    if (labelUndo && (labelUndo.from === name || labelUndo.to === name)) {
+      labelUndo = null
+      clearTimeout(undoTimer)
+    }
+  }
+
+  function createNewGroup(name, parentId = null) {
+    const cleanName = String(name ?? '').trim()
+    if (!cleanName) return
+    if (data.groups.some((g) => g.name === cleanName)) {
+      notify(t('groupNameExists'))
+      return
+    }
+    const row = createGroup(data.groups, cleanName, parentId)
+    if (row) labelUndo = null
+  }
+
+  function reparentGroup(id, parentId) {
+    if (!setGroupParent(data.groups, id, parentId)) notify(t('dragHint'))
+  }
+
+  function toggleSent(contact, sent) {
+    if (!active) return
+    contact.sentAt ??= {}
+    if (sent) contact.sentAt[active.id] = new Date().toISOString()
+    else delete contact.sentAt[active.id]
+  }
+
   function deleteContact(contact) {
     data.contacts = data.contacts.filter((c) => c.id !== contact.id)
     if (previewId === contact.id) previewId = null
@@ -538,6 +627,7 @@
     const url = buildWaUrl(contact.phone, text)
     const win = window.open(url, '_blank', 'noopener')
     if (win) {
+      contact.sentAt ??= {}
       contact.sentAt[active.id] = new Date().toISOString()
     } else {
       blockedUrl = url
@@ -586,6 +676,9 @@
     editingId = null
     editingScopeIds = []
     labelFilter = []
+    labelMode = 'and'
+    labelUndo = null
+    clearTimeout(undoTimer)
     showImport = false
     store.saveNow(data)
     notify(t('importDone'))
@@ -601,6 +694,7 @@
   function doImportContacts(contacts, stats) {
     const { added, merged } = mergeContacts(data.contacts, contacts)
     labelFilter = labelFilter.filter((l) => uniqueLabels(data.contacts).includes(l))
+    syncGroups(data.groups, data.contacts)
     showContactImport = false
     notify(t('importContactsDone', { added, merged, bad: stats.bad }))
   }
@@ -687,6 +781,17 @@
         title={theme === 'dark' ? t('switchToLight') : t('switchToDark')}
       >
         <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={15} />
+      </button>
+
+      <button
+        class="btn secondary sm"
+        class:active-toggle={mobileTab === 'contacts'}
+        type="button"
+        aria-pressed={mobileTab === 'contacts'}
+        onclick={() => switchMobileTab(mobileTab === 'contacts' ? 'send' : 'contacts')}
+      >
+        <Icon name="users" size={15} />
+        <span>{t('navContacts')}</span>
       </button>
 
       <button class="btn secondary sm" type="button" onclick={() => (showHelp = true)}>
@@ -831,6 +936,17 @@
           type="button"
           onclick={() => {
             showMobileMenu = false
+            switchMobileTab('contacts')
+          }}
+        >
+          <Icon name="users" size={16} />
+          <span>{t('navContacts')}</span>
+        </button>
+        <button
+          class="mobile-menu-item"
+          type="button"
+          onclick={() => {
+            showMobileMenu = false
             showHelp = true
           }}
         >
@@ -872,6 +988,26 @@
   {/if}
 
   <div class="mobile-viewport" bind:this={viewportEl}>
+  {#if mobileTab === 'contacts'}
+    <ContactsView
+      contacts={data.contacts}
+      groups={data.groups}
+      {t}
+      onAdd={openAddModal}
+      onPaste={openPasteModal}
+      onImport={() => (showContactImport = true)}
+      onOpen={(contact) => openContactModal(contact, data.contacts)}
+      onDelete={deleteContact}
+      onAssign={assignLabelsTo}
+      onRename={renameGroupName}
+      onDeleteLabel={removeGroup}
+      onCreateGroup={createNewGroup}
+      onReparent={reparentGroup}
+      undoLabel={labelUndo}
+      onUndoRename={undoRenameGroup}
+      onBack={() => switchMobileTab('send')}
+    />
+  {:else}
   <main class="workspace" class:single={!active}>
     <div class="workspace-rail">
       <aside class="panel sidebar" aria-label={t('templates')}>
@@ -1006,7 +1142,9 @@
           template={active}
           {labelPool}
           {labelFilter}
+          {labelMode}
           onToggleLabelFilter={toggleLabelFilter}
+          onToggleLabelMode={toggleLabelMode}
           onClearLabelFilter={() => (labelFilter = [])}
           focusedId={previewContact?.id ?? null}
           lang={lang()}
@@ -1015,6 +1153,7 @@
           onDelete={deleteContact}
           onFocus={(contact) => (previewId = contact.id)}
           onEdit={(contact, list) => openContactModal(contact, list)}
+          onToggleSent={toggleSent}
         />
       </section>
 
@@ -1304,6 +1443,7 @@
       </section>
     {/if}
   </main>
+  {/if}
   </div>
 
   <nav class="mobile-nav" aria-label={t('navLabel')}>
@@ -1336,6 +1476,16 @@
     >
       <Icon name="eye" size={18} />
       <span class="mobile-nav-label">{t('navPreview')}</span>
+    </button>
+    <button
+      type="button"
+      class="mobile-nav-btn"
+      class:active={mobileTab === 'contacts'}
+      aria-current={mobileTab === 'contacts' ? 'page' : undefined}
+      onclick={() => switchMobileTab('contacts')}
+    >
+      <Icon name="users" size={18} />
+      <span class="mobile-nav-label">{t('navContacts')}</span>
     </button>
     <button
       type="button"
@@ -1569,6 +1719,7 @@
     vars={valueVars}
     allContacts={data.contacts}
     {labelPool}
+    groups={data.groups}
     navList={editingNavList}
     lang={lang()}
     {t}
