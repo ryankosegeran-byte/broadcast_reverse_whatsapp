@@ -37,6 +37,7 @@
   let selectedOnly = $state(false)
   let statusFilter = $state('all')
   let sentOpen = $state(false)
+  let selectMode = $state(false)
 
   let allVars = $derived(template ? templateVarKeys(template) : [])
 
@@ -162,11 +163,21 @@
     selectedOnly = false
   }
 
-  function handleIdentityClick(contact) {
-    onFocus?.(contact)
-    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches) {
-      toggleSelect(contact)
+  function setSelectMode(on) {
+    selectMode = on
+    if (!on) {
+      selected = []
+      selectedOnly = false
     }
+  }
+
+  function rowAction(contact) {
+    if (selectMode) {
+      toggleSelect(contact)
+      return
+    }
+    onFocus?.(contact)
+    onOpen?.(contact)
   }
 
   function startFocusQueue() {
@@ -239,16 +250,27 @@
 
 {#if totalCount > 0}
   <div class="list-controls">
-    <label class="select-all-check">
+    <label class="select-mode-toggle">
       <input
         type="checkbox"
-        checked={allShownSelected}
-        indeterminate={someShownSelected}
-        disabled={statusScoped.length === 0}
-        onchange={(e) => (e.currentTarget.checked ? selectAllShown() : clearSelection())}
+        checked={selectMode}
+        onchange={(e) => setSelectMode(e.currentTarget.checked)}
       />
-      <span>{t('selectAll')}</span>
+      <span>{t('selectMode')}</span>
     </label>
+
+    {#if selectMode}
+      <label class="select-all-check">
+        <input
+          type="checkbox"
+          checked={allShownSelected}
+          indeterminate={someShownSelected}
+          disabled={statusScoped.length === 0}
+          onchange={(e) => (e.currentTarget.checked ? selectAllShown() : clearSelection())}
+        />
+        <span>{t('selectAll')}</span>
+      </label>
+    {/if}
 
     <div class="list-controls-right">
       <span class="badge neutral sm tabular desktop-only-count">{countLabel}</span>
@@ -365,16 +387,18 @@
   {@const missingCount = missingCountFor(contact)}
   {@const isFocused = focusedId === contact.id}
   {@const isSelected = selected.includes(contact.id)}
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
   <div
     class="clist-row"
     class:focused={isFocused}
     class:selected={isSelected}
     class:sent={isSent}
+    class:no-select={!selectMode}
+    class:select={selectMode}
     role="listitem"
-    ondblclick={(e) => {
-      if (!e.target?.closest?.('input, button:not(.clist-identity)')) {
-        openModalFor(contact)
-      }
+    title={selectMode ? null : t('clickToSend')}
+    onclick={(e) => {
+      if (!e.target?.closest?.('input, button')) rowAction(contact)
     }}
   >
     {#if confirmId === contact.id}
@@ -391,19 +415,21 @@
       </div>
     {:else}
       <div class="clist-top">
-        <label class="clist-check">
-          <input
-            type="checkbox"
-            aria-label={contact.name || contact.phone}
-            checked={isSelected}
-            onclick={(e) => e.stopPropagation()}
-            onchange={() => toggleSelect(contact)}
-          />
-        </label>
+        {#if selectMode}
+          <label class="clist-check">
+            <input
+              type="checkbox"
+              aria-label={contact.name || contact.phone}
+              checked={isSelected}
+              onclick={(e) => e.stopPropagation()}
+              onchange={() => toggleSelect(contact)}
+            />
+          </label>
+        {/if}
         <button
           type="button"
           class="clist-identity"
-          onclick={() => handleIdentityClick(contact)}
+          onclick={() => rowAction(contact)}
         >
           <span class="clist-name" class:mono={!contact.name}>
             {contact.name || contact.phone}
@@ -431,18 +457,6 @@
               {t('missingCount', { n: missingCount })}
             </button>
           {/if}
-          <button
-            class="btn icon-btn danger-ghost xs"
-            type="button"
-            title={t('delete')}
-            aria-label={t('deleteContactAria', { name: contact.name || contact.phone })}
-            onclick={(e) => {
-              e.stopPropagation()
-              confirmId = contact.id
-            }}
-          >
-            <Icon name="trash" size={13} />
-          </button>
         </div>
       </div>
 
@@ -492,6 +506,18 @@
           >
             <Icon name="external" size={12} />
             <span>{t('openWaShort')}</span>
+          </button>
+          <button
+            class="btn icon-btn danger-ghost xs clist-del"
+            type="button"
+            title={t('delete')}
+            aria-label={t('deleteContactAria', { name: contact.name || contact.phone })}
+            onclick={(e) => {
+              e.stopPropagation()
+              confirmId = contact.id
+            }}
+          >
+            <Icon name="trash" size={13} />
           </button>
         </div>
       </div>

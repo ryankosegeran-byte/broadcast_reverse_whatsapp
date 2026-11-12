@@ -2134,7 +2134,8 @@ td.col-labels {
   margin-bottom: 6px;
 }
 
-.select-all-check {
+.select-all-check,
+.select-mode-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -2145,9 +2146,14 @@ td.col-labels {
   user-select: none;
 }
 
-.select-all-check input[type='checkbox'] {
+.select-all-check input[type='checkbox'],
+.select-mode-toggle input[type='checkbox'] {
   accent-color: var(--accent-strong);
   cursor: pointer;
+}
+
+.select-mode-toggle:has(input:checked) {
+  color: var(--foreground);
 }
 
 .list-controls-right {
@@ -3288,8 +3294,13 @@ td.col-labels {
   filter: brightness(0.95);
 }
 
+.clist-row.no-select {
+  cursor: pointer;
+}
+
 .clist-bottom {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
@@ -3297,12 +3308,23 @@ td.col-labels {
   padding-left: 22px;
 }
 
+.clist-row.no-select .clist-bottom {
+  padding-left: 0;
+}
+
 .clist-labels {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  flex: 1 1 0;
+  flex: 1 1 8rem;
   min-width: 0;
+}
+
+.clist-labels .label-chip {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .clist-actions {
@@ -3317,6 +3339,10 @@ td.col-labels {
   min-height: 22px;
   padding: 0 6px;
   font-size: 11px;
+}
+
+.clist-actions .clist-del {
+  margin-left: 2px;
 }
 
 .search-icon {
@@ -5064,6 +5090,7 @@ td.actions {
     display: contents;
   }
 
+  .list-controls .select-mode-toggle,
   .list-controls .select-all-check {
     order: 1;
   }
@@ -5161,7 +5188,27 @@ td.actions {
   }
 
   .clist-bottom {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 5px;
     padding-left: 29px;
+  }
+
+  .clist-row.no-select .clist-bottom {
+    padding-left: 0;
+  }
+
+  .clist-labels {
+    flex: none;
+  }
+
+  .clist-labels .label-chip {
+    padding: 1px 7px;
+    font-size: 10.5px;
+  }
+
+  .clist-actions {
+    justify-content: flex-end;
   }
 
   .clist-actions .btn.xs {
