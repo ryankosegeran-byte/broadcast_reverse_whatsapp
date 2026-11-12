@@ -574,12 +574,6 @@ h2 {
   overflow-wrap: anywhere;
 }
 
-.alert-link {
-  color: var(--accent-strong);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 .alert-dismiss {
   display: grid;
   place-items: center;

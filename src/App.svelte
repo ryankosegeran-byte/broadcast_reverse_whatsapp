@@ -51,7 +51,6 @@
   let activeId = $state(boot.state.templates[0]?.id ?? null)
   let previewId = $state(null)
   let notice = $state('')
-  let blockedUrl = $state('')
   let showHelp = $state(false)
   let showAbout = $state(false)
   let autoFor = $state(null)
@@ -334,7 +333,6 @@
 
   function notify(message) {
     notice = message
-    blockedUrl = ''
     clearTimeout(noticeTimer)
     noticeTimer = setTimeout(() => (notice = ''), 6000)
   }
@@ -342,7 +340,6 @@
   function clearNotice() {
     clearTimeout(noticeTimer)
     notice = ''
-    blockedUrl = ''
   }
 
   function switchMobileTab(tab) {
@@ -794,14 +791,9 @@
     if (!active) return
     const text = render(active.body, contact, active, lang())
     const url = buildWaUrl(contact.phone, text)
-    const win = window.open(url, '_blank', 'noopener')
-    if (win) {
-      contact.sentAt ??= {}
-      contact.sentAt[active.id] = new Date().toISOString()
-    } else {
-      blockedUrl = url
-      notify(t('popupBlocked'))
-    }
+    window.open(url, '_blank', 'noopener')
+    contact.sentAt ??= {}
+    contact.sentAt[active.id] = new Date().toISOString()
     if (url.length > 8000) notify(t('urlTooLong'))
   }
 
@@ -1203,11 +1195,6 @@
       </span>
       <div class="alert-body">
         <span>{notice}</span>
-        {#if blockedUrl}
-          <a class="alert-link" href={blockedUrl} target="_blank" rel="noopener">
-            {blockedUrl.slice(0, 64)}…
-          </a>
-        {/if}
       </div>
       <button class="alert-dismiss" type="button" onclick={clearNotice} aria-label={t('dismiss')}>
         <Icon name="x" size={14} />

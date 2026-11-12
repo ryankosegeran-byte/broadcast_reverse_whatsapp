@@ -189,7 +189,6 @@ https://api.whatsapp.com/send?phone=6289698129722&text=<pesan ter-encode>
 
 - Teks, emoji, dan baris baru sudah terisi.
 - Tombol **Send** tetap manual. Ini batasan link WhatsApp, bukan bug.
-- Kalau popup diblokir, link muncul di banner atas untuk diklik manual.
 - Tombol **Copy** di panel preview menyalin teks yang sudah dirender.
 
 ---
