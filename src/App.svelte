@@ -17,6 +17,7 @@
   import AboutModal from './lib/AboutModal.svelte'
   import AutoDateModal from './lib/AutoDateModal.svelte'
   import EmojiPicker from './lib/EmojiPicker.svelte'
+  import Select from './lib/Select.svelte'
 
   const THEME_KEY = 'wa-broadcast:theme'
   const boot = store.loadState()
@@ -68,6 +69,12 @@
   let noticeTimer
 
   let active = $derived(data.templates.find((x) => x.id === activeId) ?? null)
+  let templateOptions = $derived(
+    data.templates.map((tpl) => ({
+      value: tpl.id,
+      label: tpl.name || t('untitled'),
+    }))
+  )
   let vars = $derived(active ? templateVarKeys(active) : [])
   let valueVars = $derived(vars.filter((v) => v !== 'nama'))
   let labelPool = $derived(uniqueLabels(data.contacts))
@@ -156,6 +163,13 @@
     }
   })
 
+  $effect(() => {
+    if (showHelp || showAbout || showImport || showContactImport || showAdd || showPaste || editingId || autoFor) {
+      showEmoji = false
+      showMobileMenu = false
+    }
+  })
+
   onMount(() => {
     applyLang()
     applyThemeAttr(theme)
@@ -236,6 +250,11 @@
     showEmoji = false
     showMobileMenu = false
     tick().then(() => viewportEl?.scrollTo(0, 0))
+  }
+
+  function toggleMobileMenu() {
+    if (!showMobileMenu) showEmoji = false
+    showMobileMenu = !showMobileMenu
   }
 
   function closeMobileMenu(restoreFocus = false) {
@@ -710,7 +729,7 @@
         aria-expanded={showMobileMenu}
         aria-haspopup="dialog"
         aria-label={showMobileMenu ? t('closeMenu') : t('menu')}
-        onclick={() => (showMobileMenu = !showMobileMenu)}
+        onclick={toggleMobileMenu}
       >
         <Icon name={showMobileMenu ? 'x' : 'menu'} size={16} />
         <span class="mobile-menu-btn-label">{t('menu')}</span>
@@ -909,22 +928,16 @@
       <section class="panel recipients" aria-label={t('recipients')}>
         <div class="mobile-tpl-bar" class:empty-tpl={!active}>
           {#if active}
-            <label class="mobile-tpl-picker">
-              <span class="mobile-tpl-icon" aria-hidden="true">
-                <Icon name="file" size={14} />
-              </span>
-              <span class="sr-only">{t('activeTemplate')}</span>
-              <select
-                class="input mobile-tpl-select"
+            <div class="mobile-tpl-picker">
+              <Select
+                size="sm"
+                icon="file"
+                ariaLabel={t('activeTemplate')}
                 value={activeId}
-                aria-label={t('activeTemplate')}
-                onchange={(e) => selectTemplate(e.currentTarget.value)}
-              >
-                {#each data.templates as tpl (tpl.id)}
-                  <option value={tpl.id}>{tpl.name || t('untitled')}</option>
-                {/each}
-              </select>
-            </label>
+                options={templateOptions}
+                onChange={(id) => selectTemplate(id)}
+              />
+            </div>
             <button
               class="btn secondary sm"
               type="button"
@@ -1120,22 +1133,16 @@
     {#if active}
       <section class="panel editor" aria-label={t('messageBody')}>
         <div class="mobile-tpl-bar">
-          <label class="mobile-tpl-picker">
-            <span class="mobile-tpl-icon" aria-hidden="true">
-              <Icon name="file" size={14} />
-            </span>
-            <span class="sr-only">{t('activeTemplate')}</span>
-            <select
-              class="input mobile-tpl-select"
+          <div class="mobile-tpl-picker">
+            <Select
+              size="sm"
+              icon="file"
+              ariaLabel={t('activeTemplate')}
               value={activeId}
-              aria-label={t('activeTemplate')}
-              onchange={(e) => selectTemplate(e.currentTarget.value)}
-            >
-              {#each data.templates as tpl (tpl.id)}
-                <option value={tpl.id}>{tpl.name || t('untitled')}</option>
-              {/each}
-            </select>
-          </label>
+              options={templateOptions}
+              onChange={(id) => selectTemplate(id)}
+            />
+          </div>
           <button
             class="btn icon-btn secondary sm"
             type="button"
@@ -1234,19 +1241,21 @@
 
       <aside class="panel preview-panel" aria-label={t('preview')}>
         {#if filteredContacts.length > 1}
-          <label class="mobile-preview-picker">
+          <div class="mobile-preview-picker">
             <span class="mobile-tpl-caption">{t('recipients')}</span>
-            <select
-              class="input mobile-tpl-select"
+            <Select
+              size="sm"
+              icon="user"
+              ariaLabel={t('recipients')}
               value={previewContact?.id ?? ''}
-              aria-label={t('recipients')}
-              onchange={(e) => (previewId = e.currentTarget.value)}
-            >
-              {#each filteredContacts as c (c.id)}
-                <option value={c.id}>{c.name ? `${c.name} (${c.phone})` : c.phone}</option>
-              {/each}
-            </select>
-          </label>
+              options={filteredContacts.map((c) => ({
+                value: c.id,
+                label: c.name || c.phone,
+                meta: c.name ? c.phone : '',
+              }))}
+              onChange={(id) => (previewId = id)}
+            />
+          </div>
         {/if}
         <Preview
           text={previewText}

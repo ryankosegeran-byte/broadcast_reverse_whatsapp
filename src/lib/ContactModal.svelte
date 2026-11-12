@@ -172,10 +172,6 @@
   }
 </script>
 
-<datalist id="contact-modal-label-pool">
-  {#each labelPool as label (label)}<option value={label}></option>{/each}
-</datalist>
-
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="overlay" onclick={onBackdropClick}>
@@ -317,7 +313,6 @@
           >
             <input
               class="input"
-              list="contact-modal-label-pool"
               bind:value={labelDraft}
               placeholder="+ {t('labelPlaceholder')}"
               aria-label={t('addLabel')}

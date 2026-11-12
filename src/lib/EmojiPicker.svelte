@@ -43,15 +43,17 @@
     const onKeyDown = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        e.stopPropagation()
+        e.stopImmediatePropagation()
         onClose(true)
       }
     }
 
-    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('click', onPointerDown, true)
     window.addEventListener('keydown', onKeyDown, true)
     return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('click', onPointerDown, true)
       window.removeEventListener('keydown', onKeyDown, true)
     }
   })

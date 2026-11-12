@@ -4,6 +4,7 @@
   import { uid } from './storage.js'
   import { varLabel } from './vars.js'
   import Icon from './Icon.svelte'
+  import Select from './Select.svelte'
 
   let { template = null, templateId = null, varKeys = [], t, onImport, onCancel } = $props()
 
@@ -17,6 +18,18 @@
   let mapping = $state({ phone: -1, name: -1, label: -1, vars: {} })
 
   let previewRows = $derived(dataRows.length ? mapRows(dataRows.slice(0, 10), mapping, varKeys) : [])
+  let columnOptions = $derived([
+    { value: -1, label: t('importMapIgnore'), muted: true, dividerAfter: headers.length > 0 },
+    ...headers.map((h, idx) => {
+      const fallback = t('importMapColumn', { n: idx + 1 })
+      const label = h || fallback
+      return {
+        value: idx,
+        label,
+        meta: label !== fallback ? `#${idx + 1}` : '',
+      }
+    }),
+  ])
 
   onMount(() => {
     const prev = document.activeElement
@@ -209,62 +222,47 @@
         <div class="import-section">
           <h3 class="field-label">{t('importMapTitle')}</h3>
           <div class="import-map-grid">
-            <label class="field">
+            <div class="field">
               <span class="field-label">{t('importMapPhone')}</span>
-              <select
-                class="input"
+              <Select
+                ariaLabel={t('importMapPhone')}
                 value={mapping.phone}
-                onchange={(e) => (mapping.phone = Number(e.currentTarget.value))}
-              >
-                <option value={-1}>{t('importMapIgnore')}</option>
-                {#each headers as h, idx (idx)}
-                  <option value={idx}>{h || t('importMapColumn', { n: idx + 1 })}</option>
-                {/each}
-              </select>
-            </label>
+                options={columnOptions}
+                onChange={(val) => (mapping.phone = val)}
+              />
+            </div>
 
-            <label class="field">
+            <div class="field">
               <span class="field-label">{t('importMapName')}</span>
-              <select
-                class="input"
+              <Select
+                ariaLabel={t('importMapName')}
                 value={mapping.name}
-                onchange={(e) => (mapping.name = Number(e.currentTarget.value))}
-              >
-                <option value={-1}>{t('importMapIgnore')}</option>
-                {#each headers as h, idx (idx)}
-                  <option value={idx}>{h || t('importMapColumn', { n: idx + 1 })}</option>
-                {/each}
-              </select>
-            </label>
+                options={columnOptions}
+                onChange={(val) => (mapping.name = val)}
+              />
+            </div>
 
-            <label class="field">
+            <div class="field">
               <span class="field-label">{t('importMapLabel')}</span>
-              <select
-                class="input"
+              <Select
+                ariaLabel={t('importMapLabel')}
                 value={mapping.label}
-                onchange={(e) => (mapping.label = Number(e.currentTarget.value))}
-              >
-                <option value={-1}>{t('importMapIgnore')}</option>
-                {#each headers as h, idx (idx)}
-                  <option value={idx}>{h || t('importMapColumn', { n: idx + 1 })}</option>
-                {/each}
-              </select>
-            </label>
+                options={columnOptions}
+                onChange={(val) => (mapping.label = val)}
+              />
+            </div>
 
             {#each varKeys as key (key)}
-              <label class="field">
-                <span class="field-label" title={key}>{template ? varLabel(template, key) : key}</span>
-                <select
-                  class="input"
+              {@const fieldLabel = template ? varLabel(template, key) : key}
+              <div class="field">
+                <span class="field-label" title={key}>{fieldLabel}</span>
+                <Select
+                  ariaLabel={fieldLabel}
                   value={mapping.vars[key] ?? -1}
-                  onchange={(e) => (mapping.vars[key] = Number(e.currentTarget.value))}
-                >
-                  <option value={-1}>{t('importMapIgnore')}</option>
-                  {#each headers as h, idx (idx)}
-                    <option value={idx}>{h || t('importMapColumn', { n: idx + 1 })}</option>
-                  {/each}
-                </select>
-              </label>
+                  options={columnOptions}
+                  onChange={(val) => (mapping.vars[key] = val)}
+                />
+              </div>
             {/each}
           </div>
         </div>
