@@ -27,6 +27,7 @@
   let filterLabels = $state([])
   let selected = $state([])
   let activeGroupId = $state('')
+  let groupsOpen = $state(false)
   let dragId = $state(null)
   let dropId = $state(null)
   let menuId = $state(null)
@@ -63,15 +64,23 @@
     return map
   })
 
+  let activeGroup = $derived(groups.find((g) => g.id === activeGroupId) ?? null)
+
   let visible = $derived.by(() => {
     let list = contacts
-    const active = groups.find((g) => g.id === activeGroupId)
-    if (active) list = list.filter((c) => (c.labels ?? []).includes(active.name))
+    if (activeGroup) list = list.filter((c) => (c.labels ?? []).includes(activeGroup.name))
     list = filterByLabels(list, filterLabels, labelMode)
     const q = query.trim().toLowerCase()
     if (q) list = list.filter((c) => c.phone.includes(q) || (c.name ?? '').toLowerCase().includes(q))
     return list
   })
+
+  let isFiltered = $derived(Boolean(activeGroupId || filterLabels.length || query.trim()))
+  let countLabel = $derived(
+    isFiltered && contacts.length > 0
+      ? t('rowsFiltered', { shown: visible.length, n: contacts.length })
+      : t('rows', { n: contacts.length })
+  )
 
   let allVisibleSelected = $derived(visible.length > 0 && visible.every((c) => selected.includes(c.id)))
 
@@ -199,12 +208,15 @@
 
 <section class="contacts-view" aria-label={t('contactsTitle')}>
   <header class="contacts-head">
-    <div>
-      <h2>{t('contactsTitle')}</h2>
-      <p class="hint">{t('contactsDesc')}</p>
+    <div class="contacts-head-copy">
+      <div class="contacts-title-row">
+        <h2>{t('contactsTitle')}</h2>
+        <span class="badge neutral sm tabular">{contacts.length}</span>
+      </div>
+      <p class="hint contacts-desc">{t('contactsDesc')}</p>
     </div>
     <div class="contacts-head-actions">
-      <button class="btn secondary sm" type="button" onclick={onAdd}>
+      <button class="btn {contacts.length ? 'secondary' : 'primary'} sm" type="button" onclick={onAdd}>
         <Icon name="plus" size={13} /><span>{t('addContactShort')}</span>
       </button>
       <button class="btn secondary sm" type="button" onclick={onPaste}>
@@ -213,7 +225,7 @@
       <button class="btn secondary sm" type="button" onclick={onImport}>
         <Icon name="upload" size={13} /><span>{t('importContactsShort')}</span>
       </button>
-      <button class="btn primary sm" type="button" onclick={onBack}>
+      <button class="btn primary sm contacts-back-btn" type="button" onclick={onBack}>
         <Icon name="send" size={13} /><span>{t('backToSend')}</span>
       </button>
     </div>
@@ -227,231 +239,292 @@
   {/if}
 
   <div class="contacts-grid">
-    <aside class="group-tree" aria-label={t('groupsTitle')}>
+    <aside class="group-tree" class:open={groupsOpen} aria-label={t('groupsTitle')}>
       <div class="group-tree-head">
-        <h3>{t('groupsTitle')}</h3>
+        <h3 class="group-tree-title">{t('groupsTitle')}</h3>
+        <button
+          class="group-collapse-btn"
+          type="button"
+          aria-expanded={groupsOpen}
+          onclick={() => (groupsOpen = !groupsOpen)}
+        >
+          <span class="group-collapse-left">
+            <Icon name="folder" size={13} />
+            <span class="group-collapse-title">{t('groupsTitle')}</span>
+            <span class="badge neutral sm tabular">{groups.length}</span>
+          </span>
+          <span class="group-collapse-right">
+            {#if activeGroup}
+              <span class="badge accent sm group-active-tag">{activeGroup.name}</span>
+            {/if}
+            <Icon name="chevron-right" size={14} className={groupsOpen ? 'rot-open' : ''} />
+          </span>
+        </button>
       </div>
 
-      {#if newParentId}
-        {@const parent = groups.find((g) => g.id === newParentId)}
-        <div class="group-add-hint">
-          <span>{t('subgroupOf')}: {parent?.name ?? ''}</span>
-          <button class="btn ghost xs" type="button" onclick={() => (newParentId = null)}>{t('cancel')}</button>
-        </div>
-      {/if}
-      <form
-        class="group-add"
-        onsubmit={(e) => {
-          e.preventDefault()
-          if (newGroupText.trim()) onCreateGroup?.(newGroupText, newParentId)
-          newGroupText = ''
-          newParentId = null
-        }}
-      >
-        <input class="input" bind:value={newGroupText} placeholder={t('groupNamePlaceholder')} aria-label={t('newGroup')} />
-        <button class="btn secondary sm" type="submit" disabled={!newGroupText.trim()} aria-label={t('newGroup')}>
-          <Icon name="plus" size={14} />
-        </button>
-      </form>
-
-      <ul class="group-list" role="tree">
-        <li class:drop={dropId === ''}>
-          <button
-            class="group-row"
-            class:active={!activeGroupId}
-            type="button"
-            onclick={() => (activeGroupId = '')}
-            ondragover={(e) => {
-              e.preventDefault()
-              if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
-              dropId = ''
-            }}
-            ondragleave={() => { if (dropId === '') dropId = null }}
-            ondrop={(e) => { e.preventDefault(); onDrop('') }}
-          >
-            <Icon name="users" size={13} />
-            <span class="group-name">{t('allContactsGroup')}</span>
-            <span class="badge neutral sm tabular">{contacts.length}</span>
+      <div class="group-tree-body">
+        {#if newParentId}
+          {@const parent = groups.find((g) => g.id === newParentId)}
+          <div class="group-add-hint">
+            <span>{t('subgroupOf')}: {parent?.name ?? ''}</span>
+            <button class="btn ghost xs" type="button" onclick={() => (newParentId = null)}>{t('cancel')}</button>
+          </div>
+        {/if}
+        <form
+          class="group-add"
+          onsubmit={(e) => {
+            e.preventDefault()
+            if (newGroupText.trim()) onCreateGroup?.(newGroupText, newParentId)
+            newGroupText = ''
+            newParentId = null
+          }}
+        >
+          <input class="input" bind:value={newGroupText} placeholder={t('groupNamePlaceholder')} aria-label={t('newGroup')} />
+          <button class="btn icon-btn secondary sm" type="submit" disabled={!newGroupText.trim()} aria-label={t('newGroup')}>
+            <Icon name="plus" size={14} />
           </button>
-        </li>
-        {#each outline as group (group.id)}
-          <li
-            class="group-item"
-            class:drop={dropId === group.id}
-            style="--depth:{group.depth}"
-            data-group-menu={group.id}
-            draggable={renameFor !== group.id}
-            ondragstart={(e) => {
-              dragId = group.id
-              e.dataTransfer?.setData('text/plain', group.id)
-              if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
-            }}
-            ondragend={() => { dragId = null; dropId = null }}
-            ondragover={(e) => {
-              e.preventDefault()
-              if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
-              dropId = group.id
-            }}
-            ondragleave={() => { if (dropId === group.id) dropId = null }}
-            ondrop={(e) => { e.preventDefault(); onDrop(group.id) }}
-          >
-            {#if renameFor === group.id}
-              <form
-                class="group-add"
-                onsubmit={(e) => {
-                  e.preventDefault()
-                  commitRename()
-                }}
-              >
-                <input class="input" bind:this={renameInputEl} bind:value={renameText} aria-label={t('renameGroup')} />
-                <button class="btn secondary sm" type="submit">{t('done')}</button>
-                <button class="btn ghost sm" type="button" onclick={() => (renameFor = null)}>{t('cancel')}</button>
-              </form>
-            {:else}
-              <button class="group-row" class:active={activeGroupId === group.id} type="button" onclick={() => pickGroup(group.id)}>
-                <Icon name="folder" size={13} />
-                <span class="group-name">{group.name}</span>
-                <span class="badge neutral sm tabular">{counts.get(group.name) ?? 0}</span>
-              </button>
-              <button
-                class="group-menu-btn"
-                type="button"
-                aria-haspopup="menu"
-                aria-expanded={menuId === group.id}
-                aria-label={t('groupsTitle') + ': ' + group.name}
-                onclick={() => {
-                  menuId = menuId === group.id ? null : group.id
-                  confirmDeleteGroupId = null
-                }}
-              >
-                <Icon name="menu" size={13} />
-              </button>
-              {#if menuId === group.id}
-                <div class="group-menu" role="menu">
-                  <button type="button" role="menuitem" onclick={() => startRename(group)}>
-                    <Icon name="edit" size={12} /><span>{t('renameGroup')}</span>
-                  </button>
-                  <button type="button" role="menuitem" onclick={() => { newParentId = group.id; menuId = null }}>
-                    <Icon name="plus" size={12} /><span>{t('createSubgroup')}</span>
-                  </button>
-                  {#if group.parentId}
-                    <button type="button" role="menuitem" onclick={() => { onReparent?.(group.id, null); menuId = null }}>
-                      <Icon name="chevron-left" size={12} /><span>{t('makeTopLevel')}</span>
-                    </button>
-                  {/if}
-                  <label class="group-menu-field">
-                    <span>{t('moveUnder')}</span>
-                    <select
-                      class="input"
-                      value={group.parentId ?? ''}
-                      onchange={(e) => { onReparent?.(group.id, e.currentTarget.value || null); menuId = null }}
-                    >
-                      <option value="">{t('mainGroups')}</option>
-                      {#each outline.filter((other) => !isDescendant(groups, group.id, other.id)) as other (other.id)}
-                        <option value={other.id}>{other.name}</option>
-                      {/each}
-                    </select>
-                  </label>
-                  {#if confirmDeleteGroupId === group.id}
-                    <div class="group-menu-confirm" role="group" aria-label={t('deleteGroupConfirm')}>
-                      <span class="hint">{t('deleteGroupConfirm')}</span>
-                      <div class="group-menu-confirm-actions">
-                        <button class="confirm-btn" type="button" onclick={() => (confirmDeleteGroupId = null)}>
-                          {t('cancel')}
-                        </button>
-                        <button
-                          class="confirm-btn danger"
-                          type="button"
-                          onclick={() => {
-                            onDeleteLabel?.(group.name)
-                            if (activeGroupId === group.id) activeGroupId = ''
-                            confirmDeleteGroupId = null
-                            menuId = null
-                          }}
-                        >
-                          {t('delete')}
-                        </button>
-                      </div>
-                    </div>
-                  {:else}
-                    <button class="danger" type="button" role="menuitem" onclick={() => (confirmDeleteGroupId = group.id)}>
-                      <Icon name="trash" size={12} /><span>{t('deleteGroup')}</span>
-                    </button>
-                  {/if}
-                </div>
-              {/if}
-            {/if}
+        </form>
+
+        <ul class="group-list" role="tree">
+          <li class:drop={dropId === ''}>
+            <button
+              class="group-row"
+              class:active={!activeGroupId}
+              type="button"
+              onclick={() => (activeGroupId = '')}
+              ondragover={(e) => {
+                e.preventDefault()
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+                dropId = ''
+              }}
+              ondragleave={() => { if (dropId === '') dropId = null }}
+              ondrop={(e) => { e.preventDefault(); onDrop('') }}
+            >
+              <Icon name="users" size={13} />
+              <span class="group-name">{t('allContactsGroup')}</span>
+              <span class="badge neutral sm tabular">{contacts.length}</span>
+            </button>
           </li>
-        {/each}
-      </ul>
-      <p class="hint group-hint">{t('dragHint')}</p>
+          {#each outline as group (group.id)}
+            <li
+              class="group-item"
+              class:drop={dropId === group.id}
+              style="--depth:{group.depth}"
+              data-group-menu={group.id}
+              draggable={renameFor !== group.id}
+              ondragstart={(e) => {
+                dragId = group.id
+                e.dataTransfer?.setData('text/plain', group.id)
+                if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+              }}
+              ondragend={() => { dragId = null; dropId = null }}
+              ondragover={(e) => {
+                e.preventDefault()
+                if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+                dropId = group.id
+              }}
+              ondragleave={() => { if (dropId === group.id) dropId = null }}
+              ondrop={(e) => { e.preventDefault(); onDrop(group.id) }}
+            >
+              {#if renameFor === group.id}
+                <form
+                  class="group-add"
+                  onsubmit={(e) => {
+                    e.preventDefault()
+                    commitRename()
+                  }}
+                >
+                  <input class="input" bind:this={renameInputEl} bind:value={renameText} aria-label={t('renameGroup')} />
+                  <button class="btn secondary sm" type="submit">{t('done')}</button>
+                  <button class="btn ghost sm" type="button" onclick={() => (renameFor = null)}>{t('cancel')}</button>
+                </form>
+              {:else}
+                <button class="group-row" class:active={activeGroupId === group.id} type="button" onclick={() => pickGroup(group.id)}>
+                  <Icon name="folder" size={13} />
+                  <span class="group-name">{group.name}</span>
+                  <span class="badge neutral sm tabular">{counts.get(group.name) ?? 0}</span>
+                </button>
+                <button
+                  class="group-menu-btn"
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={menuId === group.id}
+                  aria-label={t('groupsTitle') + ': ' + group.name}
+                  onclick={() => {
+                    menuId = menuId === group.id ? null : group.id
+                    confirmDeleteGroupId = null
+                  }}
+                >
+                  <Icon name="menu" size={13} />
+                </button>
+                {#if menuId === group.id}
+                  <div class="group-menu" role="menu">
+                    <button type="button" role="menuitem" onclick={() => startRename(group)}>
+                      <Icon name="edit" size={12} /><span>{t('renameGroup')}</span>
+                    </button>
+                    <button type="button" role="menuitem" onclick={() => { newParentId = group.id; menuId = null }}>
+                      <Icon name="plus" size={12} /><span>{t('createSubgroup')}</span>
+                    </button>
+                    {#if group.parentId}
+                      <button type="button" role="menuitem" onclick={() => { onReparent?.(group.id, null); menuId = null }}>
+                        <Icon name="chevron-left" size={12} /><span>{t('makeTopLevel')}</span>
+                      </button>
+                    {/if}
+                    <label class="group-menu-field">
+                      <span>{t('moveUnder')}</span>
+                      <select
+                        class="input"
+                        value={group.parentId ?? ''}
+                        onchange={(e) => { onReparent?.(group.id, e.currentTarget.value || null); menuId = null }}
+                      >
+                        <option value="">{t('mainGroups')}</option>
+                        {#each outline.filter((other) => !isDescendant(groups, group.id, other.id)) as other (other.id)}
+                          <option value={other.id}>{other.name}</option>
+                        {/each}
+                      </select>
+                    </label>
+                    {#if confirmDeleteGroupId === group.id}
+                      <div class="group-menu-confirm" role="group" aria-label={t('deleteGroupConfirm')}>
+                        <span class="hint">{t('deleteGroupConfirm')}</span>
+                        <div class="group-menu-confirm-actions">
+                          <button class="confirm-btn" type="button" onclick={() => (confirmDeleteGroupId = null)}>
+                            {t('cancel')}
+                          </button>
+                          <button
+                            class="confirm-btn danger"
+                            type="button"
+                            onclick={() => {
+                              onDeleteLabel?.(group.name)
+                              if (activeGroupId === group.id) activeGroupId = ''
+                              confirmDeleteGroupId = null
+                              menuId = null
+                            }}
+                          >
+                            {t('delete')}
+                          </button>
+                        </div>
+                      </div>
+                    {:else}
+                      <button class="danger" type="button" role="menuitem" onclick={() => (confirmDeleteGroupId = group.id)}>
+                        <Icon name="trash" size={12} /><span>{t('deleteGroup')}</span>
+                      </button>
+                    {/if}
+                  </div>
+                {/if}
+              {/if}
+            </li>
+          {/each}
+        </ul>
+        {#if groups.length > 1}
+          <p class="hint group-hint">{t('dragHint')}</p>
+        {/if}
+      </div>
     </aside>
 
     <div class="contacts-main">
-      <div class="contacts-tools">
-        <div class="search-field">
-          <span class="search-icon" aria-hidden="true"><Icon name="search" size={15} /></span>
-          <input class="input search-input" type="search" placeholder={t('search')} bind:value={query} aria-label={t('search')} />
+      {#if contacts.length > 0}
+        <div class="contacts-tools">
+          <div class="search-field">
+            <span class="search-icon" aria-hidden="true"><Icon name="search" size={14} /></span>
+            <input class="input search-input" type="search" placeholder={t('search')} bind:value={query} aria-label={t('search')} />
+            {#if query}
+              <button class="search-clear" type="button" aria-label={t('clearSearch')} onclick={() => (query = '')}>
+                <Icon name="x" size={13} />
+              </button>
+            {/if}
+          </div>
         </div>
-        <label class="select-all-check">
-          <input type="checkbox" checked={allVisibleSelected} disabled={!visible.length} onchange={toggleAll} />
-          <span>{t('selectAll')}</span>
-        </label>
-      </div>
 
-      {#if labelPool.length}
-        <div class="label-filter">
-          {#each labelPool as label (label)}
-            <button class="chip" type="button" aria-pressed={filterLabels.includes(label)} onclick={() => toggleFilterLabel(label)}>
-              {label}
+        {#if labelPool.length}
+          <div class="label-filter">
+            {#each labelPool as label (label)}
+              <button class="chip" type="button" aria-pressed={filterLabels.includes(label)} onclick={() => toggleFilterLabel(label)}>
+                {label}
+              </button>
+            {/each}
+            <button class="btn ghost xs match-toggle" type="button" aria-pressed={labelMode === 'or'} onclick={() => (labelMode = labelMode === 'and' ? 'or' : 'and')}>
+              {labelMode === 'and' ? t('filterMatchAll') : t('filterMatchAny')}
             </button>
-          {/each}
-          <button class="btn ghost xs match-toggle" type="button" aria-pressed={labelMode === 'or'} onclick={() => (labelMode = labelMode === 'and' ? 'or' : 'and')}>
-            {labelMode === 'and' ? t('filterMatchAll') : t('filterMatchAny')}
-          </button>
-          {#if filterLabels.length}
-            <button class="btn ghost xs" type="button" onclick={() => (filterLabels = [])}>{t('clearLabels')}</button>
-          {/if}
-        </div>
-      {/if}
+            {#if filterLabels.length}
+              <button class="btn ghost xs" type="button" onclick={() => (filterLabels = [])}>{t('clearLabels')}</button>
+            {/if}
+          </div>
+        {/if}
 
-      {#if selected.length}
-        <div class="bulk-bar" role="region" aria-label={t('bulkActions')}>
-          <span class="badge accent sm tabular">{t('selectedCount', { n: selected.length })}</span>
-          <form class="bulk-inline" onsubmit={(e) => { e.preventDefault(); doAddLabel() }}>
-            <input class="input" bind:value={addLabelText} placeholder={t('labelInputPlaceholder')} aria-label={t('bulkAssign')} list="group-names" />
-            <button class="btn secondary xs" type="submit">{t('bulkAssign')}</button>
-          </form>
-          <form class="bulk-inline" onsubmit={(e) => { e.preventDefault(); doRemoveLabel() }}>
-            <input class="input" bind:value={removeLabelText} placeholder={t('labelRemovedPlaceholder')} aria-label={t('bulkRemove')} list="selected-labels" />
-            <button class="btn secondary xs" type="submit">{t('bulkRemove')}</button>
-          </form>
-          {#if confirmBulkDelete}
-            <div class="confirm-pill" role="group" aria-label={t('confirmDeletePrompt')}>
-              <span class="confirm-prompt">{t('confirmDeletePrompt')}</span>
-              <button class="confirm-btn" type="button" onclick={() => (confirmBulkDelete = false)}>{t('cancel')}</button>
-              <button class="confirm-btn danger" type="button" onclick={doDelete}>{t('delete')}</button>
+        <div class="contacts-list-bar">
+          <label class="select-all-check">
+            <input type="checkbox" checked={allVisibleSelected} disabled={!visible.length} onchange={toggleAll} />
+            <span>{t('selectAll')}</span>
+          </label>
+          <span class="badge neutral sm tabular">{countLabel}</span>
+        </div>
+
+        {#if selected.length}
+          <div class="bulk-bar" role="region" aria-label={t('bulkActions')}>
+            <div class="bulk-bar-head">
+              <span class="badge accent sm tabular">{t('selectedCount', { n: selected.length })}</span>
+              <button class="btn icon-btn ghost xs bulk-close" type="button" aria-label={t('selectNone')} onclick={() => (selected = [])}>
+                <Icon name="x" size={13} />
+              </button>
             </div>
-          {:else}
-            <button class="btn danger-ghost xs" type="button" onclick={() => (confirmBulkDelete = true)}>
-              <Icon name="trash" size={12} /><span>{t('bulkDelete')}</span>
-            </button>
-          {/if}
-          <button class="btn icon-btn ghost xs" type="button" aria-label={t('selectNone')} onclick={() => (selected = [])}>
-            <Icon name="x" size={13} />
-          </button>
-        </div>
+            <form class="bulk-inline" onsubmit={(e) => { e.preventDefault(); doAddLabel() }}>
+              <input class="input" bind:value={addLabelText} placeholder={t('labelInputPlaceholder')} aria-label={t('bulkAssign')} list="group-names" />
+              <button class="btn secondary xs" type="submit">{t('bulkAssign')}</button>
+            </form>
+            <form class="bulk-inline" onsubmit={(e) => { e.preventDefault(); doRemoveLabel() }}>
+              <input class="input" bind:value={removeLabelText} placeholder={t('labelRemovedPlaceholder')} aria-label={t('bulkRemove')} list="selected-labels" />
+              <button class="btn secondary xs" type="submit">{t('bulkRemove')}</button>
+            </form>
+            {#if confirmBulkDelete}
+              <div class="confirm-pill" role="group" aria-label={t('confirmDeletePrompt')}>
+                <span class="confirm-prompt">{t('confirmDeletePrompt')}</span>
+                <button class="confirm-btn" type="button" onclick={() => (confirmBulkDelete = false)}>{t('cancel')}</button>
+                <button class="confirm-btn danger" type="button" onclick={doDelete}>{t('delete')}</button>
+              </div>
+            {:else}
+              <button class="btn danger-ghost xs bulk-del-btn" type="button" onclick={() => (confirmBulkDelete = true)}>
+                <Icon name="trash" size={12} /><span>{t('bulkDelete')}</span>
+              </button>
+            {/if}
+          </div>
+        {/if}
+
+        <datalist id="group-names">
+          {#each groups as g (g.id)}<option value={g.name}></option>{/each}
+        </datalist>
+        <datalist id="selected-labels">
+          {#each selectedLabelsPool as l (l)}<option value={l}></option>{/each}
+        </datalist>
       {/if}
 
-      <datalist id="group-names">
-        {#each groups as g (g.id)}<option value={g.name}></option>{/each}
-      </datalist>
-      <datalist id="selected-labels">
-        {#each selectedLabelsPool as l (l)}<option value={l}></option>{/each}
-      </datalist>
-
-      {#if !visible.length}
-        <div class="empty-state compact"><p>{t('noMatches')}</p></div>
+      {#if contacts.length === 0}
+        <div class="empty-state compact contacts-empty">
+          <div class="empty-icon" aria-hidden="true">
+            <Icon name="users" size={18} />
+          </div>
+          <p>{t('noContacts')}</p>
+        </div>
+      {:else if !visible.length}
+        <div class="empty-state compact contacts-empty">
+          <p>{t('noMatches')}</p>
+          <div class="empty-actions">
+            {#if query}
+              <button class="btn secondary sm" type="button" onclick={() => (query = '')}>
+                {t('clearSearch')}
+              </button>
+            {/if}
+            {#if filterLabels.length}
+              <button class="btn secondary sm" type="button" onclick={() => (filterLabels = [])}>
+                {t('clearFilters')}
+              </button>
+            {/if}
+            {#if activeGroupId}
+              <button class="btn secondary sm" type="button" onclick={() => (activeGroupId = '')}>
+                {t('allContactsGroup')}
+              </button>
+            {/if}
+          </div>
+        </div>
       {:else}
         <div class="clist" role="list">
           {#each visible as contact (contact.id)}
