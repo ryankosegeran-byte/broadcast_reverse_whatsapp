@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import {
   normalizeGroups, syncGroups, createGroup, groupAncestors, labelsForGroup, expandLabels,
   groupOutline, isDescendant, setGroupParent, renameLabel, deleteLabel, assignLabels,
-  filterByLabels, splitBySent, backfillHierarchy,
+  filterByLabels, splitBySent, backfillHierarchy, labelHue, buildLabelOptions,
+  filterLabelOptions, highlightText,
 } from './groups.js'
 
 test('normalizeGroups trims, dedupes, and assigns ids', () => {
@@ -156,4 +157,48 @@ test('backfillHierarchy covers a whole subtree moved under a new parent', () => 
   setGroupParent(groups, 'k', 'b')
   backfillHierarchy(groups, contacts)
   assert.deepEqual(contacts[0].labels, ['Agape', 'Kue', 'Bolu'])
+})
+
+test('buildLabelOptions attaches counts, deterministic hue, and outermost-first parentPath', () => {
+  const groups = normalizeGroups([
+    { id: 'b', name: 'Bolu' },
+    { id: 'k', name: 'Kue', parentId: 'b' },
+    { id: 'a', name: 'Agape', parentId: 'k' },
+  ])
+  const contacts = [
+    { id: 'c1', labels: ['Agape', 'Kue', 'Bolu'] },
+    { id: 'c2', labels: ['Kue', 'Bolu', 'VIP'] },
+  ]
+  const opts = buildLabelOptions(['Agape', 'Bolu', 'Kue', 'VIP'], contacts, groups)
+  assert.equal(opts.length, 4)
+  assert.deepEqual(opts[0], { name: 'Agape', count: 1, hue: labelHue('Agape'), parentPath: 'Bolu › Kue' })
+  assert.deepEqual(opts[1], { name: 'Bolu', count: 2, hue: labelHue('Bolu'), parentPath: '' })
+  assert.deepEqual(opts[2], { name: 'Kue', count: 2, hue: labelHue('Kue'), parentPath: 'Bolu' })
+  assert.deepEqual(opts[3], { name: 'VIP', count: 1, hue: labelHue('VIP'), parentPath: '' })
+})
+
+test('filterLabelOptions ranks prefix name matches before mid-name and parent-path matches', () => {
+  const options = [
+    { name: 'Agape', count: 1, hue: 10, parentPath: 'Kue' },
+    { name: 'Kue Kering', count: 2, hue: 20, parentPath: '' },
+    { name: 'Snack Kue', count: 3, hue: 30, parentPath: '' },
+    { name: 'VIP', count: 4, hue: 40, parentPath: '' },
+  ]
+  assert.deepEqual(filterLabelOptions(options, '').map((o) => o.name), ['Agape', 'Kue Kering', 'Snack Kue', 'VIP'])
+  assert.deepEqual(filterLabelOptions(options, 'kue').map((o) => o.name), ['Kue Kering', 'Snack Kue', 'Agape'])
+  assert.deepEqual(filterLabelOptions(options, 'nope'), [])
+})
+
+test('highlightText splits case-insensitive substring matches safely', () => {
+  assert.deepEqual(highlightText('Agape VIP', 'vip'), [
+    { text: 'Agape ', match: false },
+    { text: 'VIP', match: true },
+  ])
+  assert.deepEqual(highlightText('Kue Kering', 'k'), [
+    { text: 'K', match: true },
+    { text: 'ue ', match: false },
+    { text: 'K', match: true },
+    { text: 'ering', match: false },
+  ])
+  assert.deepEqual(highlightText('Agape', '  '), [{ text: 'Agape', match: false }])
 })

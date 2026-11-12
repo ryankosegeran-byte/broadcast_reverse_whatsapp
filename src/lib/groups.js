@@ -263,3 +263,71 @@ export function splitBySent(contacts, templateId) {
   }
   return { unsent, sent }
 }
+
+/** Deterministic 0..359 HSL hue for a label name. */
+export function labelHue(name) {
+  const s = String(name ?? '')
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360
+  return h
+}
+
+/** Build label filter items with contact counts, hue, and parent breadcrumb path. */
+export function buildLabelOptions(labelPool, contacts = [], groups = []) {
+  const counts = new Map()
+  for (const c of contacts ?? []) {
+    for (const raw of new Set(c.labels ?? [])) {
+      const name = clean(raw)
+      if (name) counts.set(name, (counts.get(name) ?? 0) + 1)
+    }
+  }
+  const byName = new Map((groups ?? []).map((g) => [g.name, g]))
+  return (labelPool ?? []).map((name) => {
+    const g = byName.get(name)
+    const parentPath = g ? groupAncestors(groups, g.id).reverse().join(' › ') : ''
+    return {
+      name,
+      count: counts.get(name) ?? 0,
+      hue: labelHue(name),
+      parentPath,
+    }
+  })
+}
+
+/** Filter and rank label options by name (prefix first, then substring) or parent path. */
+export function filterLabelOptions(options, query) {
+  const q = clean(query).toLowerCase()
+  if (!q) return options ?? []
+  const hits = []
+  for (const opt of options ?? []) {
+    const nameLower = opt.name.toLowerCase()
+    const idx = nameLower.indexOf(q)
+    if (idx === 0) hits.push({ opt, rank: 0 })
+    else if (idx > 0) hits.push({ opt, rank: 1 })
+    else if (opt.parentPath && opt.parentPath.toLowerCase().includes(q)) hits.push({ opt, rank: 2 })
+  }
+  hits.sort((a, b) => a.rank - b.rank)
+  return hits.map((h) => h.opt)
+}
+
+/** Split `text` into matched / unmatched segments for safe highlight rendering. */
+export function highlightText(text, query) {
+  const src = String(text ?? '')
+  if (!src) return []
+  const q = clean(query).toLowerCase()
+  if (!q) return [{ text: src, match: false }]
+  const lower = src.toLowerCase()
+  const out = []
+  let pos = 0
+  while (pos < src.length) {
+    const idx = lower.indexOf(q, pos)
+    if (idx < 0) {
+      out.push({ text: src.slice(pos), match: false })
+      break
+    }
+    if (idx > pos) out.push({ text: src.slice(pos, idx), match: false })
+    out.push({ text: src.slice(idx, idx + q.length), match: true })
+    pos = idx + q.length
+  }
+  return out
+}

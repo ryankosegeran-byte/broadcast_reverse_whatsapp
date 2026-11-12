@@ -1,6 +1,7 @@
 <script>
   import { onMount, tick } from 'svelte'
   import Icon from './Icon.svelte'
+  import LabelFilter from './LabelFilter.svelte'
   import { groupOutline, filterByLabels, isDescendant } from './groups.js'
 
   let {
@@ -66,9 +67,14 @@
 
   let activeGroup = $derived(groups.find((g) => g.id === activeGroupId) ?? null)
 
+  let groupScopedContacts = $derived(
+    activeGroup
+      ? contacts.filter((c) => (c.labels ?? []).includes(activeGroup.name))
+      : contacts
+  )
+
   let visible = $derived.by(() => {
-    let list = contacts
-    if (activeGroup) list = list.filter((c) => (c.labels ?? []).includes(activeGroup.name))
+    let list = groupScopedContacts
     list = filterByLabels(list, filterLabels, labelMode)
     const q = query.trim().toLowerCase()
     if (q) list = list.filter((c) => c.phone.includes(q) || (c.name ?? '').toLowerCase().includes(q))
@@ -95,6 +101,14 @@
 
   $effect(() => {
     if (activeGroupId && !groups.some((g) => g.id === activeGroupId)) activeGroupId = ''
+  })
+
+  $effect(() => {
+    if (!filterLabels.length) return
+    const pool = new Set(labelPool)
+    if (filterLabels.some((l) => !pool.has(l))) {
+      filterLabels = filterLabels.filter((l) => pool.has(l))
+    }
   })
 
   onMount(() => {
@@ -436,19 +450,18 @@
         </div>
 
         {#if labelPool.length}
-          <div class="label-filter">
-            {#each labelPool as label (label)}
-              <button class="chip" type="button" aria-pressed={filterLabels.includes(label)} onclick={() => toggleFilterLabel(label)}>
-                {label}
-              </button>
-            {/each}
-            <button class="btn ghost xs match-toggle" type="button" aria-pressed={labelMode === 'or'} onclick={() => (labelMode = labelMode === 'and' ? 'or' : 'and')}>
-              {labelMode === 'and' ? t('filterMatchAll') : t('filterMatchAny')}
-            </button>
-            {#if filterLabels.length}
-              <button class="btn ghost xs" type="button" onclick={() => (filterLabels = [])}>{t('clearLabels')}</button>
-            {/if}
-          </div>
+          <LabelFilter
+            {labelPool}
+            selected={filterLabels}
+            mode={labelMode}
+            contacts={groupScopedContacts}
+            {groups}
+            {t}
+            onToggle={toggleFilterLabel}
+            onSetSelection={(next) => (filterLabels = [...next])}
+            onModeChange={(next) => (labelMode = next)}
+            onClear={() => (filterLabels = [])}
+          />
         {/if}
 
         <div class="contacts-list-bar">

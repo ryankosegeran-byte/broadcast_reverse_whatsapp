@@ -4,15 +4,19 @@
   import { splitBySent } from './groups.js'
   import Icon from './Icon.svelte'
   import Preview from './Preview.svelte'
+  import LabelFilter from './LabelFilter.svelte'
 
   let {
     contacts,
+    allContacts = [],
     allContactIds = [],
     totalCount = contacts.length,
     template,
+    groups = [],
     labelPool = [],
     labelFilter = [],
     onToggleLabelFilter,
+    onSetLabelFilter,
     onClearLabelFilter,
     focusedId = null,
     lang = undefined,
@@ -219,30 +223,18 @@
 </div>
 
 {#if labelPool.length}
-  <div class="label-filter">
-    <span class="label-filter-label">{t('filterByLabel')}</span>
-    {#each labelPool as label (label)}
-      <button
-        class="chip"
-        type="button"
-        aria-pressed={labelFilter.includes(label)}
-        onclick={() => onToggleLabelFilter?.(label)}
-      >
-        {label}
-      </button>
-    {/each}
-    <button
-      class="btn ghost xs match-toggle"
-      type="button"
-      aria-pressed={labelMode === 'or'}
-      onclick={() => onToggleLabelMode?.(labelMode === 'and' ? 'or' : 'and')}
-    >
-      {labelMode === 'and' ? t('filterMatchAll') : t('filterMatchAny')}
-    </button>
-    {#if labelFilter.length}
-      <button class="btn ghost xs" type="button" onclick={() => onClearLabelFilter?.()}>{t('clearLabels')}</button>
-    {/if}
-  </div>
+  <LabelFilter
+    {labelPool}
+    selected={labelFilter}
+    mode={labelMode}
+    contacts={allContacts.length ? allContacts : contacts}
+    {groups}
+    {t}
+    onToggle={onToggleLabelFilter}
+    onSetSelection={onSetLabelFilter}
+    onModeChange={onToggleLabelMode}
+    onClear={onClearLabelFilter}
+  />
 {/if}
 
 {#if totalCount > 0}

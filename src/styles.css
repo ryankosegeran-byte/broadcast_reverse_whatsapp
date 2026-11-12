@@ -1460,6 +1460,78 @@ textarea.body {
   color: var(--text-muted);
 }
 
+.label-filter-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-spring) var(--ease-spring);
+}
+
+.label-filter-trigger:hover {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--foreground);
+}
+
+.label-filter-trigger:active {
+  transform: scale(0.96);
+}
+
+.label-filter-trigger.has-active {
+  background: var(--accent-subtle);
+  border-color: color-mix(in oklab, var(--accent) 44%, var(--border));
+  color: color-mix(in oklab, var(--accent-strong) 88%, var(--foreground));
+}
+
+:root[data-theme='dark'] .label-filter-trigger.has-active {
+  color: var(--accent-strong);
+}
+
+.label-filter-count,
+.label-filter-total {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.label-filter-count {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.label-filter-total {
+  background: color-mix(in oklab, var(--foreground) 10%, transparent);
+  color: var(--text-muted);
+}
+
+.label-filter .chip.is-overflowed-chip {
+  gap: 4px;
+}
+
 .label-filter .chip {
   font-family: var(--font-body);
   border-color: var(--border);
@@ -2159,7 +2231,8 @@ td.col-labels {
   flex-wrap: wrap;
 }
 
-.recipients .label-filter .chip {
+.recipients .label-filter .chip,
+.recipients .label-filter-trigger {
   min-height: 22px;
   padding: 0 7px;
   font-size: 10.5px;
@@ -2757,6 +2830,12 @@ td.col-labels {
 .search-input {
   padding-left: 34px;
   padding-right: 32px;
+}
+
+.search-field input[type='search']::-webkit-search-decoration,
+.search-field input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .search-clear {
@@ -3449,6 +3528,246 @@ td.actions {
 .cmodal-footer-left {
   display: flex;
   align-items: center;
+}
+
+/* Searchable label filter modal */
+.modal-card.modal-lfilter {
+  width: min(100%, 480px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.lfilter-top {
+  display: grid;
+  gap: 10px;
+  padding: 12px var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface);
+  flex: none;
+}
+
+.lfilter-search-input {
+  min-height: 36px;
+  padding: 6px 32px 6px 34px;
+  font-size: var(--text-sm);
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+}
+
+.lfilter-search-input:focus {
+  background: var(--surface);
+}
+
+.lfilter-mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.lfilter-mode-seg {
+  padding: 2px;
+}
+
+.lfilter-mode-seg .segmented-thumb {
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+}
+
+.lfilter-mode-seg .segmented-btn {
+  min-height: 26px;
+  padding: 0 10px;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.lfilter-picked {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-height: 64px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.lfilter-picked-chip {
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    transform var(--duration-spring) var(--ease-spring),
+    opacity var(--duration-fast) var(--ease-standard);
+}
+
+.lfilter-picked-chip:hover {
+  opacity: 0.85;
+}
+
+.lfilter-picked-chip:active {
+  transform: scale(0.95);
+}
+
+.lfilter-list {
+  flex: 1 1 auto;
+  min-height: 150px;
+  max-height: min(44dvh, 340px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px var(--space-4);
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.lfilter-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.lfilter-item:hover {
+  background: var(--surface-muted);
+  border-color: var(--border);
+}
+
+.lfilter-item[aria-checked='true'] {
+  background: color-mix(in oklab, var(--accent) 11%, var(--surface));
+  border-color: color-mix(in oklab, var(--accent) 42%, var(--border));
+}
+
+.lfilter-check {
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--accent-foreground);
+  display: grid;
+  place-items: center;
+  flex: none;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.lfilter-item[aria-checked='true'] .lfilter-check {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.lfilter-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: hsl(var(--label-hue, 160) 60% 48%);
+}
+
+:root[data-theme='dark'] .lfilter-dot {
+  background: hsl(var(--label-hue, 160) 65% 62%);
+}
+
+.lfilter-item-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.lfilter-item-name {
+  font-size: 0.84rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lfilter-item-parent {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lfilter-mark {
+  background: color-mix(in oklab, var(--accent) 26%, transparent);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+.lfilter-item-count {
+  flex: none;
+  min-width: 24px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lfilter-item[aria-checked='true'] .lfilter-item-count {
+  background: color-mix(in oklab, var(--accent) 18%, var(--surface));
+  color: color-mix(in oklab, var(--accent-strong) 88%, var(--foreground));
+}
+
+:root[data-theme='dark'] .lfilter-item[aria-checked='true'] .lfilter-item-count {
+  color: var(--accent-strong);
+}
+
+.lfilter-empty {
+  min-height: 150px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  text-align: center;
+  gap: 10px;
+  padding: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.lfilter-footer {
+  flex: none;
+}
+
+.lfilter-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.lfilter-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 @keyframes overlay-in {
@@ -4144,7 +4463,8 @@ td.actions {
   }
 
   .variables-panel .chip,
-  .label-filter .chip {
+  .label-filter .chip,
+  .label-filter-trigger {
     min-height: 24px;
     padding: 0 8px;
     font-size: 11px;
@@ -4749,6 +5069,20 @@ td.actions {
   .modal-header,
   .modal-body {
     padding: 12px 14px;
+  }
+
+  .lfilter-top {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+
+  .lfilter-search-input {
+    padding: 6px 30px 6px 32px;
+  }
+
+  .lfilter-list {
+    padding: 6px 10px;
+    max-height: 42dvh;
   }
 
   .modal-footer.cmodal-footer {

@@ -537,6 +537,11 @@
     labelMode = mode
   }
 
+  function setLabelFilter(next) {
+    const pool = new Set(labelPool)
+    labelFilter = [...new Set(next)].filter((l) => pool.has(l))
+  }
+
   function assignLabelsTo(ids, labels, mode) {
     const names = mode === 'remove' ? labels : expandLabels(data.groups, labels)
     const changed = assignLabels(data.contacts, ids, names, mode)
@@ -1142,13 +1147,16 @@
 
         <RecipientTable
           contacts={filteredContacts}
+          allContacts={data.contacts}
           allContactIds={data.contacts.map((c) => c.id)}
           totalCount={data.contacts.length}
           template={active}
+          groups={data.groups}
           {labelPool}
           {labelFilter}
           {labelMode}
           onToggleLabelFilter={toggleLabelFilter}
+          onSetLabelFilter={setLabelFilter}
           onToggleLabelMode={toggleLabelMode}
           onClearLabelFilter={() => (labelFilter = [])}
           focusedId={previewContact?.id ?? null}
