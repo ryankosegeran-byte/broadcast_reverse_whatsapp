@@ -630,7 +630,7 @@ h2 {
 /* Workspace grid */
 .workspace {
   display: grid;
-  grid-template-columns: clamp(256px, 24vw, 316px) minmax(0, 1fr) clamp(224px, 20vw, 286px);
+  grid-template-columns: clamp(256px, 24vw, 316px) minmax(0, 1fr) clamp(284px, 26.5vw, 372px);
   gap: 12px;
   align-items: start;
 }
@@ -1863,22 +1863,20 @@ td.col-labels {
   position: sticky;
   top: var(--space-4);
   display: grid;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: 14px;
+  gap: var(--space-2);
 }
 
 .preview-shell {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
 .preview-toolbar {
   flex: none;
   display: grid;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .preview-head {
@@ -1887,17 +1885,6 @@ td.col-labels {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-2);
-}
-
-.preview-head h2 {
-  font-size: 0.875rem;
-}
-
-.preview-head .copy-btn {
-  min-height: 28px;
-  padding: 0 9px;
-  font-size: var(--text-xs);
-  gap: 5px;
 }
 
 .copy-btn[data-copy-state='copied'] {
@@ -1920,8 +1907,8 @@ td.col-labels {
   flex-direction: column;
   background: var(--wa-stage);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  max-height: 52vh;
+  border-radius: calc(var(--radius-panel) - 8px);
+  max-height: 66vh;
   overflow: hidden;
 }
 
@@ -1929,23 +1916,23 @@ td.col-labels {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
+  gap: 8px;
+  padding: 7px 11px;
   border-bottom: 1px solid var(--border-subtle);
   background: color-mix(in oklab, var(--surface-muted) 72%, var(--wa-stage));
 }
 
 .wa-chat-avatar {
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--radius-pill);
   display: grid;
   place-items: center;
   background: var(--accent-subtle);
   border: 1px solid color-mix(in oklab, var(--accent) 34%, var(--border));
   color: color-mix(in oklab, var(--accent-strong) 88%, var(--foreground));
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   line-height: 1;
 }
@@ -1965,7 +1952,7 @@ td.col-labels {
 
 .wa-chat-name {
   min-width: 0;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--foreground);
   overflow: hidden;
@@ -1975,15 +1962,15 @@ td.col-labels {
 
 .wa-chat-tag {
   flex: none;
-  font-size: 10px;
+  font-size: 10.5px;
   color: var(--text-muted);
   white-space: nowrap;
 }
 
 .wa-chat-body {
   flex: 0 1 auto;
-  min-height: 52px;
-  padding: 7px 8px;
+  min-height: 140px;
+  padding: 12px;
   display: grid;
   align-content: start;
   overflow-y: auto;
@@ -1992,20 +1979,20 @@ td.col-labels {
 .wa-bubble {
   justify-self: end;
   width: fit-content;
-  min-width: 72px;
-  max-width: min(92%, 248px);
+  min-width: 112px;
+  max-width: min(88%, 296px);
   background: var(--wa-bubble);
   border: 1px solid var(--wa-bubble-border);
-  border-radius: 9px 3px 9px 9px;
-  padding: 5px 8px 4px;
+  border-radius: 12px 3px 12px 12px;
+  padding: 9px 12px 7px;
   box-shadow: var(--shadow-resting);
   display: grid;
-  gap: 2px;
+  gap: 4px;
 }
 
 .wa-content {
   font-size: 0.6875rem;
-  line-height: 1.36;
+  line-height: 1.38;
   color: var(--foreground);
   overflow-wrap: anywhere;
 }
@@ -2016,7 +2003,7 @@ td.col-labels {
 }
 
 .wa-blank {
-  height: 0.45em;
+  height: 0.5em;
 }
 
 .wa-bold {
@@ -2027,7 +2014,7 @@ td.col-labels {
 .wa-mono {
   font-family: var(--font-mono);
   font-size: 0.65rem;
-  padding: 0 3px;
+  padding: 1px 4px;
   border-radius: 4px;
   background: color-mix(in oklab, var(--foreground) 7%, transparent);
 }
@@ -2042,8 +2029,8 @@ td.col-labels {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
-  font-size: 0.6rem;
+  gap: 6px;
+  font-size: 0.625rem;
   color: var(--text-muted);
 }
 
@@ -2055,8 +2042,7 @@ td.col-labels {
 .wa-empty {
   place-self: center;
   text-align: center;
-  padding: var(--space-2);
-  font-size: var(--text-xs);
+  padding: var(--space-3) var(--space-2);
   max-width: 24ch;
 }
 
@@ -3521,11 +3507,11 @@ td.actions {
 }
 
 .cmodal-preview-col .wa-stage {
-  max-height: 36vh;
+  max-height: 44vh;
 }
 
 .cmodal-preview-col .wa-chat-body {
-  min-height: 64px;
+  min-height: 112px;
 }
 
 .modal-footer.cmodal-footer {
@@ -3994,7 +3980,7 @@ td.actions {
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
 
   .preview-panel > :not(.preview-shell) {
@@ -4004,7 +3990,7 @@ td.actions {
   .preview-shell {
     flex: 0 1 auto;
     min-height: 0;
-    gap: 6px;
+    gap: 8px;
   }
 
   .preview-panel .wa-stage {
@@ -4063,11 +4049,11 @@ td.actions {
   }
 
   .preview-panel {
-    max-height: min(32dvh, 260px);
+    max-height: min(42dvh, 400px);
   }
 
   .preview-panel .wa-chat-body {
-    min-height: 56px;
+    min-height: 108px;
   }
 }
 
@@ -4741,8 +4727,8 @@ td.actions {
   }
 
   .focus-preview .wa-chat-body {
-    min-height: 52px;
-    padding: 7px 8px;
+    min-height: 84px;
+    padding: var(--space-3);
   }
 
   .focus-stepper {
@@ -4779,7 +4765,7 @@ td.actions {
   }
 
   .focus-preview .wa-stage {
-    max-height: 176px;
+    max-height: 224px;
   }
 
   .focus-actions {

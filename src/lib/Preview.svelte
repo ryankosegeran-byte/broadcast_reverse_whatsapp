@@ -61,11 +61,11 @@
       >
         <span class="copy-glyph" aria-hidden="true">
           {#if copyState === 'copied'}
-            <Icon name="check" size={13} />
+            <Icon name="check" size={14} />
           {:else if copyState === 'error'}
-            <Icon name="alert" size={13} />
+            <Icon name="alert" size={14} />
           {:else}
-            <Icon name="copy" size={13} />
+            <Icon name="copy" size={14} />
           {/if}
         </span>
         <span class="copy-label">{copyLabel}</span>
@@ -79,7 +79,7 @@
         {#if contactLabel}
           {contactLabel.trim().charAt(0).toUpperCase()}
         {:else}
-          <Icon name="wa" size={11} />
+          <Icon name="wa" size={13} />
         {/if}
       </span>
       <div class="wa-chat-meta">
