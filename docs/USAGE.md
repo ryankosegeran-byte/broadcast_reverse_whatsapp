@@ -157,6 +157,19 @@ Semua grup dan label ikut tersimpan di backup (Ekspor/Impor JSON), termasuk susu
 
 ---
 
+## Grup template
+
+Template dapat dikelompokkan per grup dan subgrup (contoh: **Usaha Roti** → **Pemberitahuan** → **Pengingat Pembayaran**).
+
+1. Di panel **Template** (kolom kiri desktop, tab **Template** di HP) ada kotak **cari** (nama template atau nama grup) dan pilihan **filter grup** (Semua grup / salah satu grup / Tanpa grup). Memilih sebuah grup ikut menampilkan subgrupnya.
+2. Klik tombol folder **Kelola template** di samping **Template baru** (atau item **Kelola template** di menu HP) untuk membuat, mengganti nama, menambah subgrup, memindah, atau menghapus grup. Hapus grup memindahkan template di dalamnya ke grup induk (subgrupnya naik satu tingkat); tidak ada template yang ikut terhapus.
+3. Pindahkan template antar grup dengan **menarik** barisnya ke grup tujuan, atau lewat pilihan **Grup** di editor template.
+4. **Template baru** dibuat di dalam grup yang sedang dipilih di filter.
+
+Grup template ikut tersimpan di backup (Ekspor/Impor JSON), termasuk susunan subgrup.
+
+---
+
 ## 5. Badge dan status
 
 - Badge `{n} kosong` pada baris kontak (atau garis batas kuning/amber pada input di modal) menandakan ada variabel yang masih kosong. Pesan tetap bisa dikirim, variabelnya jadi kosong.
@@ -194,10 +207,10 @@ Pindah perangkat: pakai **Export** lalu **Import**.
 
 ## 8. Export / Import
 
-**Export** membuat file `wa-broadcast-backup-YYYY-MM-DD.json` berformat `schemaVersion: 4` yang berisi semua template (termasuk definisi variabel `vars`, preset otomatis `auto`, dan nilai bawaan `globals`), daftar `groups` (termasuk susunan subgrup), serta semua kontak (termasuk `labels`, `values`, dan `sentAt`).
+**Export** membuat file `wa-broadcast-backup-YYYY-MM-DD.json` berformat `schemaVersion: 5` yang berisi semua template (termasuk definisi variabel `vars`, preset otomatis `auto`, nilai bawaan `globals`, dan `groupId`), daftar `templateGroups` (termasuk susunan subgrup), daftar `groups` (termasuk susunan subgrup), serta semua kontak (termasuk `labels`, `values`, dan `sentAt`).
 Preferensi bahasa dan tema tidak ikut.
 
-**Import** memvalidasi file dulu (menampilkan jumlah template, kontak, dan label yang ditemukan), lalu menawarkan dua mode. File cadangan `schemaVersion: 1`, `2`, dan `3` lama tetap bisa diimpor dan otomatis diupgrade (`vars: []`, `auto: {}`, `labels: []`, serta `groups` disinkronkan dari label kontak):
+**Import** memvalidasi file dulu (menampilkan jumlah template, kontak, dan label yang ditemukan), lalu menawarkan dua mode. File cadangan `schemaVersion: 1`, `2`, `3`, dan `4` lama tetap bisa diimpor dan otomatis diupgrade (`vars: []`, `auto: {}`, `labels: []`, `groups` disinkronkan dari label kontak, serta `templateGroups: []` dan `groupId: null`):
 
 | Mode | Perilaku |
 |---|---|
@@ -206,7 +219,8 @@ Preferensi bahasa dan tema tidak ikut.
 
 Aturan merge:
 
-- Template: lokal menang saat `id` atau nama sama; `vars` digabung per key (mengisi nama tampilan yang masih kosong dan menambah key baru).
+- Template: lokal menang saat `id` atau nama sama; `vars` digabung per key (mengisi nama tampilan yang masih kosong dan menambah key baru); template baru dari file tetap mengikuti grupnya bila ada (dipetakan ke grup lokal bila namanya sama).
+- Grup template: digabung per nama grup (grup yang belum ada ikut ditambahkan sambil mempertahankan susunan induk/subgrup bila tersedia).
 - Kontak: lokal menang saat nomor sama; `name` dan nilai yang kosong diisi dari file, `labels` digabung (union tanpa duplikat).
 - Grup: digabung per nama grup (grup yang belum ada ikut ditambahkan sambil mempertahankan susunan induk/subgrup bila tersedia).
 - Global: hanya key yang belum ada.

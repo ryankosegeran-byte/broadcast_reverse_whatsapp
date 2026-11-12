@@ -60,16 +60,18 @@ test('merge keeps local contact data and fills only blanks', () => {
   assert.equal(local.contacts[0].sentAt.t1, '2026-05-05T00:00:00.000Z')
 })
 
-test('migrate upgrades v1 to v4 with labels, vars, auto, and groups', () => {
+test('migrate upgrades v1 to v5 with labels, vars, auto, groups, and template groups', () => {
   const state = migrate({
     templates: [{ name: 'A', body: '{{x}}' }],
     contacts: [{ phone: '62811111', name: 'Budi' }],
   })
-  assert.equal(state.schemaVersion, 4)
+  assert.equal(state.schemaVersion, 5)
   assert.deepEqual(state.templates[0].vars, [])
   assert.deepEqual(state.templates[0].auto, {})
+  assert.equal(state.templates[0].groupId, null)
   assert.deepEqual(state.contacts[0].labels, [])
   assert.deepEqual(state.groups, [])
+  assert.deepEqual(state.templateGroups, [])
 })
 
 test('migrate normalises labels and validates vars', () => {
@@ -108,8 +110,8 @@ test('validateState returns template, contact, and unique label counts for v1 an
     contacts: [{ phone: '0811111111', name: 'Budi' }],
   })
   assert.equal(v1.ok, true)
-  assert.equal(v1.data.schemaVersion, 4)
-  assert.deepEqual(v1.counts, { templates: 1, contacts: 1, labels: 0, groups: 0 })
+  assert.equal(v1.data.schemaVersion, 5)
+  assert.deepEqual(v1.counts, { templates: 1, contacts: 1, labels: 0, groups: 0, templateGroups: 0 })
 
   const v2 = validateState({
     schemaVersion: 2,
@@ -120,8 +122,8 @@ test('validateState returns template, contact, and unique label counts for v1 an
     ],
   })
   assert.equal(v2.ok, true)
-  assert.equal(v2.data.schemaVersion, 4)
-  assert.deepEqual(v2.counts, { templates: 1, contacts: 2, labels: 2, groups: 2 })
+  assert.equal(v2.data.schemaVersion, 5)
+  assert.deepEqual(v2.counts, { templates: 1, contacts: 2, labels: 2, groups: 2, templateGroups: 0 })
 })
 
 test('migrate keeps valid auto presets and drops invalid ones', () => {
@@ -201,4 +203,36 @@ test('mergeStates remaps incoming subgroup parentId onto local group id on name 
 
   assert.equal(local.groups.filter((g) => g.name === 'Kue').length, 1)
   assert.equal(local.groups.find((g) => g.name === 'Agape').parentId, 'k_local')
+})
+
+test('migrate resets a groupId that references a missing template group', () => {
+  const state = migrate({
+    templates: [{ name: 'A', body: '', groupId: 'ghost' }],
+    templateGroups: [],
+    contacts: [],
+  })
+  assert.equal(state.templates[0].groupId, null)
+})
+
+test('mergeStates unions template groups and remaps incoming template refs', () => {
+  const local = emptyState()
+  local.templateGroups.push({ id: 'r_local', name: 'Usaha Roti', parentId: null })
+  local.templates.push({ id: 't1', name: 'A', body: '', groupId: null })
+
+  const incoming = emptyState()
+  incoming.templateGroups.push({ id: 'r_remote', name: ' Usaha Roti ', parentId: null })
+  incoming.templateGroups.push({ id: 'p_remote', name: 'Pemberitahuan', parentId: 'r_remote' })
+  incoming.templateGroups.push({ id: 'blank', name: '  ', parentId: null })
+  incoming.templates.push({ id: 't9', name: 'Ingat', body: '', groupId: 'p_remote' })
+  incoming.templates.push({ id: 't10', name: 'Dangling', body: '', groupId: 'missing' })
+
+  mergeStates(local, incoming)
+
+  assert.equal(local.templateGroups.filter((g) => g.name === 'Usaha Roti').length, 1)
+  assert.equal(local.templateGroups.some((g) => !g.name.trim()), false)
+  const added = local.templates.find((t) => t.id === 't9')
+  const pem = local.templateGroups.find((g) => g.name === 'Pemberitahuan')
+  assert.equal(added.groupId, pem.id)
+  assert.equal(pem.parentId, 'r_local')
+  assert.equal(local.templates.find((t) => t.id === 't10').groupId, null)
 })

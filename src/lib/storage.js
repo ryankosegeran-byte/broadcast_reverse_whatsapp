@@ -2,8 +2,9 @@ import { normalizePhone, isValidPhone } from './wa.js'
 import { mergeContacts, uniqueLabels } from './contacts.js'
 import { normalizeGroups, syncGroups } from './groups.js'
 import { isAutoPreset } from './dates.js'
+import { normalizeTemplateGroups } from './templateGroups.js'
 
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 export const DATA_KEY = 'wa-broadcast:v1'
 export const LANG_KEY = 'wa-broadcast:lang'
 export const CORRUPT_KEY = 'wa-broadcast:v1:corrupt'
@@ -13,6 +14,7 @@ export function emptyState() {
     schemaVersion: SCHEMA_VERSION,
     updatedAt: new Date().toISOString(),
     groups: [],
+    templateGroups: [],
     templates: [],
     contacts: [],
   }
@@ -28,6 +30,7 @@ export function migrate(raw) {
     schemaVersion: SCHEMA_VERSION,
     updatedAt: raw?.updatedAt ?? new Date().toISOString(),
     groups: normalizeGroups(raw?.groups),
+    templateGroups: normalizeTemplateGroups(raw?.templateGroups),
     templates: Array.isArray(raw?.templates) ? raw.templates : [],
     contacts: Array.isArray(raw?.contacts) ? raw.contacts : [],
   }
@@ -52,6 +55,7 @@ export function migrate(raw) {
             .map((v) => ({ key: String(v.key), label: String(v.label ?? '') }))
             .filter((v, i, all) => all.findIndex((x) => x.key === v.key) === i)
         : [],
+      groupId: typeof t.groupId === 'string' && t.groupId ? t.groupId : null,
       createdAt: t.createdAt ?? new Date().toISOString(),
       updatedAt: t.updatedAt ?? new Date().toISOString(),
     }))
@@ -69,6 +73,9 @@ export function migrate(raw) {
       sentAt: c.sentAt && typeof c.sentAt === 'object' ? c.sentAt : {},
     }))
     .filter((c) => isValidPhone(c.phone))
+
+  const tgIds = new Set(state.templateGroups.map((g) => g.id))
+  for (const t of state.templates) if (t.groupId && !tgIds.has(t.groupId)) t.groupId = null
 
   syncGroups(state.groups, state.contacts)
 
@@ -141,19 +148,68 @@ export function validateState(raw) {
       contacts: data.contacts.length,
       labels: uniqueLabels(data.contacts).length,
       groups: data.groups.length,
+      templateGroups: data.templateGroups.length,
     },
   }
 }
 
 export function mergeStates(local, incoming) {
+  local.templateGroups ??= []
+  const tgByName = new Map(local.templateGroups.map((g) => [g.name, g]))
+  const tgIds = new Set(local.templateGroups.map((g) => g.id))
+  const tgRemap = new Map()
+  const tgAdded = []
+  for (const g of incoming.templateGroups ?? []) {
+    if (!g || typeof g !== 'object') continue
+    const name = String(g.name ?? '').trim()
+    if (!name) continue
+    const existing = tgByName.get(name)
+    if (existing) {
+      if (g.id) tgRemap.set(g.id, existing.id)
+      continue
+    }
+    let id = typeof g.id === 'string' && g.id && !tgIds.has(g.id) ? g.id : uid('tgrp')
+    while (tgIds.has(id)) id = uid('tgrp')
+    tgIds.add(id)
+    const row = { id, name, parentId: null }
+    tgByName.set(row.name, row)
+    if (g.id) tgRemap.set(g.id, id)
+    tgAdded.push([g, row])
+  }
+  for (const [src, row] of tgAdded) {
+    const parentId = src.parentId
+      ? tgRemap.get(src.parentId) ?? (tgIds.has(src.parentId) ? src.parentId : null)
+      : null
+    row.parentId = parentId && parentId !== row.id ? parentId : null
+    local.templateGroups.push(row)
+  }
+  const tgById = new Map(local.templateGroups.map((g) => [g.id, g]))
+  for (const [, row] of tgAdded) {
+    const visited = new Set([row.id])
+    let cur = row
+    while (cur?.parentId) {
+      if (visited.has(cur.parentId)) {
+        cur.parentId = null
+        break
+      }
+      visited.add(cur.parentId)
+      cur = tgById.get(cur.parentId)
+    }
+  }
+
   const byId = new Map(local.templates.map((t) => [t.id, t]))
   const byName = new Map(local.templates.map((t) => [t.name.trim().toLowerCase(), t]))
   for (const t of incoming.templates) {
     const nameKey = t.name.trim().toLowerCase()
     if (byId.has(t.id) || (nameKey && byName.has(nameKey))) continue
-    local.templates.push(t)
-    byId.set(t.id, t)
-    if (nameKey) byName.set(nameKey, t)
+    const rawGroupId = typeof t.groupId === 'string' && t.groupId ? t.groupId : null
+    const nextGroupId = rawGroupId
+      ? tgRemap.get(rawGroupId) ?? (tgIds.has(rawGroupId) ? rawGroupId : null)
+      : null
+    const nextTpl = { ...t, groupId: nextGroupId }
+    local.templates.push(nextTpl)
+    byId.set(nextTpl.id, nextTpl)
+    if (nameKey) byName.set(nameKey, nextTpl)
   }
 
   for (const t of local.templates) {

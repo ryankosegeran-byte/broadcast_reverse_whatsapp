@@ -17,11 +17,24 @@
     backfillHierarchy,
     syncGroups,
   } from './lib/groups.js'
+  import {
+    templateGroupOutline,
+    templateGroupPath,
+    templateGroupDescendantIds,
+    templateGroupCounts,
+    filterTemplates,
+    createTemplateGroup,
+    renameTemplateGroup,
+    deleteTemplateGroup,
+    setTemplateGroupParent,
+    assignTemplateGroup,
+  } from './lib/templateGroups.js'
   import { t, lang, setLang, applyLang } from './lib/i18n.svelte.js'
   import Icon from './lib/Icon.svelte'
   import Preview from './lib/Preview.svelte'
   import RecipientTable from './lib/RecipientTable.svelte'
   import ContactsView from './lib/ContactsView.svelte'
+  import TemplateGroupManager from './lib/TemplateGroupManager.svelte'
   import ImportDialog from './lib/ImportDialog.svelte'
   import ContactImport from './lib/ContactImport.svelte'
   import ContactModal from './lib/ContactModal.svelte'
@@ -66,6 +79,12 @@
   let labelMode = $state('and')
   let labelUndo = $state(null)
   let undoTimer
+  let showTemplateManager = $state(false)
+  let tplQuery = $state('')
+  let tplGroupFilter = $state('')
+  let tplOpen = $state({})
+  let tplDragId = $state(null)
+  let tplDropGroupId = $state(null)
 
   let nameEl = $state(null)
   let bodyEl = $state(null)
@@ -88,12 +107,64 @@
     data.templates.map((tpl) => ({
       value: tpl.id,
       label: tpl.name || t('untitled'),
+      meta: templateGroupPath(data.templateGroups, tpl.groupId),
     }))
   )
   let vars = $derived(active ? templateVarKeys(active) : [])
   let valueVars = $derived(vars.filter((v) => v !== 'nama'))
   let labelPool = $derived(uniqueLabels(data.contacts))
   let filteredContacts = $derived(filterByLabels(data.contacts, labelFilter, labelMode))
+  let tplOutline = $derived(templateGroupOutline(data.templateGroups))
+  let tplGroupById = $derived(new Map(data.templateGroups.map((g) => [g.id, g])))
+  let tplGroupCounts = $derived(templateGroupCounts(data.templateGroups, data.templates))
+  let tplVisible = $derived(
+    filterTemplates(data.templates, data.templateGroups, tplQuery, tplGroupFilter)
+  )
+  let tplVisibleUngrouped = $derived(tplVisible.filter((x) => !x.groupId))
+  let tplForceOpen = $derived(
+    Boolean(tplQuery.trim()) || (tplGroupFilter && tplGroupFilter !== '__none__')
+  )
+  let tplVisibleGroupIds = $derived.by(() => {
+    const set = new Set()
+    const addAncestors = (startId) => {
+      let cur = startId ? tplGroupById.get(startId) : null
+      const seen = new Set()
+      while (cur && !seen.has(cur.id)) {
+        seen.add(cur.id)
+        set.add(cur.id)
+        cur = cur.parentId ? tplGroupById.get(cur.parentId) : null
+      }
+    }
+    for (const tpl of tplVisible) addAncestors(tpl.groupId)
+    if (!tplQuery.trim() && tplGroupFilter !== '__none__') {
+      if (!tplGroupFilter) {
+        for (const g of data.templateGroups) set.add(g.id)
+      } else if (tplGroupById.has(tplGroupFilter)) {
+        addAncestors(tplGroupFilter)
+        for (const id of templateGroupDescendantIds(data.templateGroups, tplGroupFilter)) {
+          set.add(id)
+        }
+      }
+    }
+    return set
+  })
+  let tplFilterOptions = $derived([
+    { value: '', label: t('allGroups') },
+    ...tplOutline.map((g) => ({
+      value: g.id,
+      label: '— '.repeat(g.depth) + g.name,
+      meta: String(tplGroupCounts.get(g.id) ?? 0),
+    })),
+    {
+      value: '__none__',
+      label: t('noGroup'),
+      meta: String(data.templates.filter((x) => !x.groupId).length),
+    },
+  ])
+  let tplAssignOptions = $derived([
+    { value: '', label: t('noGroup') },
+    ...tplOutline.map((g) => ({ value: g.id, label: '— '.repeat(g.depth) + g.name })),
+  ])
   let previewContact = $derived(
     filteredContacts.find((c) => c.id === previewId) ?? filteredContacts[0] ?? null
   )
@@ -174,6 +245,17 @@
   })
 
   $effect(() => {
+    data.templateGroups ??= []
+    if (
+      tplGroupFilter &&
+      tplGroupFilter !== '__none__' &&
+      !data.templateGroups.some((g) => g.id === tplGroupFilter)
+    ) {
+      tplGroupFilter = ''
+    }
+  })
+
+  $effect(() => {
     if (labelFilter.length === 0) return
     const pool = new Set(labelPool)
     if (labelFilter.some((l) => !pool.has(l))) {
@@ -182,7 +264,7 @@
   })
 
   $effect(() => {
-    if (showHelp || showAbout || showImport || showContactImport || showAdd || showPaste || editingId || autoFor) {
+    if (showHelp || showAbout || showTemplateManager || showImport || showContactImport || showAdd || showPaste || editingId || autoFor) {
       showEmoji = false
       showMobileMenu = false
     }
@@ -208,7 +290,7 @@
       }
     }
     const onKeyDown = (e) => {
-      if (showHelp || showAbout || showImport || showContactImport || editingId || autoFor) return
+      if (showHelp || showAbout || showTemplateManager || showImport || showContactImport || editingId || autoFor) return
       if (showAdd) {
         if (e.key === 'Escape') {
           e.preventDefault()
@@ -282,11 +364,29 @@
 
   function newTemplate() {
     const now = new Date().toISOString()
-    const tpl = { id: store.uid('tpl'), name: '', body: '', vars: [], globals: {}, auto: {}, createdAt: now, updatedAt: now }
+    const groupId =
+      tplGroupFilter &&
+      tplGroupFilter !== '__none__' &&
+      data.templateGroups.some((g) => g.id === tplGroupFilter)
+        ? tplGroupFilter
+        : null
+    const tpl = {
+      id: store.uid('tpl'),
+      name: '',
+      body: '',
+      vars: [],
+      globals: {},
+      auto: {},
+      groupId,
+      createdAt: now,
+      updatedAt: now,
+    }
     data.templates.push(tpl)
     activeId = tpl.id
     previewId = null
     confirmTplId = null
+    tplQuery = ''
+    if (groupId) tplOpen[groupId] = true
     showEmoji = false
     showMobileMenu = false
     bodyCursor = null
@@ -607,6 +707,65 @@
     backfillHierarchy(data.groups, data.contacts)
   }
 
+  function newTemplateGroup(name, parentId = null) {
+    const cleanName = String(name ?? '').trim()
+    if (!cleanName) return
+    if (data.templateGroups.some((g) => g.name === cleanName)) {
+      notify(t('groupNameExists'))
+      return
+    }
+    createTemplateGroup(data.templateGroups, cleanName, parentId)
+  }
+
+  function renameTemplateGroupName(from, to) {
+    if (!renameTemplateGroup(data.templateGroups, from, to)) {
+      notify(t('groupNameExists'))
+    }
+  }
+
+  function removeTemplateGroup(id) {
+    const deleted = data.templateGroups.find((g) => g.id === id)
+    const moved = deleteTemplateGroup(data.templateGroups, data.templates, id)
+    if (tplGroupFilter === id) tplGroupFilter = deleted?.parentId ?? ''
+    if (moved) notify(t('templatesMoved', { n: moved }))
+  }
+
+  function reparentTemplateGroup(id, parentId) {
+    if (!setTemplateGroupParent(data.templateGroups, id, parentId)) {
+      notify(t('dragHint'))
+    }
+  }
+
+  function dropTemplateOnGroup(groupId) {
+    if (tplDragId) {
+      const moved = assignTemplateGroup(data.templates, [tplDragId], groupId || null)
+      if (moved) notify(t('templatesMoved', { n: moved }))
+    }
+    tplDragId = null
+    tplDropGroupId = null
+  }
+
+  function moveActiveToGroup(groupId) {
+    if (active) assignTemplateGroup(data.templates, [active.id], groupId || null)
+  }
+
+  function tplGroupDepth(groupId) {
+    const g = tplOutline.find((x) => x.id === groupId)
+    return g ? g.depth + 1 : 0
+  }
+
+  function hasCollapsedAncestor(groupId) {
+    if (tplForceOpen) return false
+    let cur = tplGroupById.get(groupId)
+    const seen = new Set()
+    while (cur?.parentId && !seen.has(cur.parentId)) {
+      seen.add(cur.parentId)
+      if (tplOpen[cur.parentId] === false) return true
+      cur = tplGroupById.get(cur.parentId)
+    }
+    return false
+  }
+
   function toggleSent(contact, sent) {
     if (!active) return
     contact.sentAt ??= {}
@@ -688,6 +847,9 @@
     labelFilter = []
     labelMode = 'and'
     labelUndo = null
+    tplQuery = ''
+    tplGroupFilter = ''
+    tplOpen = {}
     clearTimeout(undoTimer)
     showImport = false
     store.saveNow(data)
@@ -710,7 +872,7 @@
   }
 
   function openPasteModal() {
-    if (showHelp || showAbout || showImport || showContactImport || editingId || autoFor) return
+    if (showHelp || showAbout || showTemplateManager || showImport || showContactImport || editingId || autoFor) return
     showMobileMenu = false
     showEmoji = false
     showPaste = true
@@ -726,7 +888,7 @@
   }
 
   function openAddModal() {
-    if (showHelp || showAbout || showImport || showContactImport || editingId || autoFor) return
+    if (showHelp || showAbout || showTemplateManager || showImport || showContactImport || editingId || autoFor) return
     showMobileMenu = false
     showEmoji = false
     showAdd = true
@@ -744,6 +906,51 @@
     if (restoreFocus) tick().then(() => addBtnEl?.focus())
   }
 </script>
+
+{#snippet tplRow(tpl)}
+  <li
+    class="tpl-item"
+    class:active={tpl.id === activeId}
+    style="--depth:{tplGroupDepth(tpl.groupId)}"
+    draggable={confirmTplId !== tpl.id}
+    ondragstart={(e) => {
+      tplDragId = tpl.id
+      e.dataTransfer?.setData('text/plain', tpl.id)
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+    }}
+    ondragend={() => {
+      tplDragId = null
+      tplDropGroupId = null
+    }}
+  >
+    {#if confirmTplId === tpl.id}
+      <div class="tpl-confirm" bind:this={confirmTplEl} role="group" aria-label={t('confirmDeleteTemplatePrompt')}>
+        <span class="tpl-confirm-label">{t('confirmDeleteTemplatePrompt')}</span>
+        <div class="tpl-confirm-actions">
+          <button class="confirm-btn" type="button" onclick={() => (confirmTplId = null)}>
+            {t('cancel')}
+          </button>
+          <button class="confirm-btn danger" type="button" onclick={() => confirmDeleteTemplate(tpl.id)}>
+            {t('delete')}
+          </button>
+        </div>
+      </div>
+    {:else}
+      <button class="tpl-name" type="button" onclick={() => selectTemplate(tpl.id, true)}>
+        {tpl.name || t('untitled')}
+      </button>
+      <button
+        class="tpl-del"
+        type="button"
+        title={t('delete')}
+        aria-label={t('deleteTemplateAria', { name: tpl.name || t('untitled') })}
+        onclick={() => (confirmTplId = tpl.id)}
+      >
+        <Icon name="x" size={14} />
+      </button>
+    {/if}
+  </li>
+{/snippet}
 
 <div class="page" class:no-template={!active} data-mobile-tab={mobileTab}>
   <header class="topbar">
@@ -946,6 +1153,17 @@
           type="button"
           onclick={() => {
             showMobileMenu = false
+            showTemplateManager = true
+          }}
+        >
+          <Icon name="folder" size={16} />
+          <span>{t('manageTemplates')}</span>
+        </button>
+        <button
+          class="mobile-menu-item"
+          type="button"
+          onclick={() => {
+            showMobileMenu = false
             switchMobileTab('contacts')
           }}
         >
@@ -1023,51 +1241,172 @@
       <aside class="panel sidebar" aria-label={t('templates')}>
         <div class="panel-head">
           <h2>{t('templates')}</h2>
-          <button
-            class="btn sm {data.templates.length === 0 ? 'primary' : 'secondary'}"
-            type="button"
-            onclick={newTemplate}
-          >
-            <Icon name="plus" size={14} />
-            <span>{t('newTemplate')}</span>
-          </button>
+          <div class="sidebar-head-actions">
+            <button
+              class="btn icon-btn secondary sm"
+              type="button"
+              title={t('manageTemplates')}
+              aria-label={t('manageTemplates')}
+              onclick={() => (showTemplateManager = true)}
+            >
+              <Icon name="folder" size={14} />
+            </button>
+            <button
+              class="btn sm {data.templates.length === 0 ? 'primary' : 'secondary'}"
+              type="button"
+              onclick={newTemplate}
+            >
+              <Icon name="plus" size={14} />
+              <span>{t('newTemplate')}</span>
+            </button>
+          </div>
         </div>
 
-        {#if data.templates.length === 0}
+        {#if data.templates.length === 0 && data.templateGroups.length === 0}
           <p class="muted small sidebar-empty">{t('noTemplatesDesc')}</p>
         {:else}
-          <ul class="tpl-list">
-            {#each data.templates as tpl (tpl.id)}
-              <li class="tpl-item" class:active={tpl.id === activeId}>
-                {#if confirmTplId === tpl.id}
-                  <div class="tpl-confirm" bind:this={confirmTplEl} role="group" aria-label={t('confirmDeleteTemplatePrompt')}>
-                    <span class="tpl-confirm-label">{t('confirmDeleteTemplatePrompt')}</span>
-                    <div class="tpl-confirm-actions">
-                      <button class="confirm-btn" type="button" onclick={() => (confirmTplId = null)}>
-                        {t('cancel')}
-                      </button>
-                      <button class="confirm-btn danger" type="button" onclick={() => confirmDeleteTemplate(tpl.id)}>
-                        {t('delete')}
-                      </button>
-                    </div>
-                  </div>
-                {:else}
-                  <button class="tpl-name" type="button" onclick={() => selectTemplate(tpl.id, true)}>
-                    {tpl.name || t('untitled')}
-                  </button>
+          <div class="tpl-tools">
+            {#if data.templates.length > 0}
+              <div class="search-field">
+                <span class="search-icon" aria-hidden="true"><Icon name="search" size={13} /></span>
+                <input
+                  class="input search-input"
+                  type="search"
+                  placeholder={t('templateSearchPlaceholder')}
+                  aria-label={t('templateSearchPlaceholder')}
+                  bind:value={tplQuery}
+                />
+                {#if tplQuery}
                   <button
-                    class="tpl-del"
+                    class="search-clear"
                     type="button"
-                    title={t('delete')}
-                    aria-label={t('deleteTemplateAria', { name: tpl.name || t('untitled') })}
-                    onclick={() => (confirmTplId = tpl.id)}
+                    aria-label={t('clearSearch')}
+                    onclick={() => (tplQuery = '')}
                   >
-                    <Icon name="x" size={14} />
+                    <Icon name="x" size={13} />
                   </button>
                 {/if}
-              </li>
-            {/each}
-          </ul>
+              </div>
+            {/if}
+            {#if data.templateGroups.length > 0}
+              <Select
+                size="sm"
+                icon="folder"
+                ariaLabel={t('filterByGroup')}
+                value={tplGroupFilter}
+                options={tplFilterOptions}
+                onChange={(id) => (tplGroupFilter = id)}
+              />
+            {/if}
+          </div>
+
+          {#if data.templateGroups.length === 0}
+            {#if tplVisible.length > 0}
+              <ul class="tpl-tree">
+                {#each tplVisible as tpl (tpl.id)}
+                  {@render tplRow(tpl)}
+                {/each}
+              </ul>
+            {/if}
+          {:else if tplVisibleGroupIds.size > 0 || tplVisibleUngrouped.length > 0}
+            <ul class="tpl-tree">
+              {#each tplOutline as group (group.id)}
+                {#if tplVisibleGroupIds.has(group.id) && !hasCollapsedAncestor(group.id)}
+                  {@const open = tplForceOpen ? true : tplOpen[group.id] !== false}
+                  {@const kids = tplVisible.filter((x) => x.groupId === group.id)}
+                  {@const hasVisibleKids = tplOutline.some(
+                    (d) => d.parentId === group.id && tplVisibleGroupIds.has(d.id)
+                  )}
+                  <li
+                    class="tpl-group"
+                    class:drop={tplDropGroupId === group.id}
+                    style="--depth:{group.depth}"
+                    ondragover={(e) => {
+                      if (!tplDragId) return
+                      e.preventDefault()
+                      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+                      tplDropGroupId = group.id
+                    }}
+                    ondragleave={(e) => {
+                      if (tplDropGroupId === group.id && !e.currentTarget.contains(e.relatedTarget)) {
+                        tplDropGroupId = null
+                      }
+                    }}
+                    ondrop={(e) => {
+                      e.preventDefault()
+                      dropTemplateOnGroup(group.id)
+                    }}
+                  >
+                    <div class="tpl-group-row">
+                      {#if hasVisibleKids || kids.length}
+                        <button
+                          class="tpl-caret"
+                          type="button"
+                          aria-expanded={open}
+                          aria-label={group.name}
+                          onclick={() => (tplOpen[group.id] = !open)}
+                        >
+                          <Icon name="chevron-right" size={12} className={open ? 'rot-open' : ''} />
+                        </button>
+                      {:else}
+                        <span class="tpl-caret-spacer" aria-hidden="true"></span>
+                      {/if}
+                      <Icon name="folder" size={12} />
+                      <span class="tpl-group-name">{group.name}</span>
+                      <span class="badge neutral sm tabular">{tplGroupCounts.get(group.id) ?? 0}</span>
+                    </div>
+                    {#if open && kids.length}
+                      <ul class="tpl-group-list">
+                        {#each kids as tpl (tpl.id)}
+                          {@render tplRow(tpl)}
+                        {/each}
+                      </ul>
+                    {/if}
+                  </li>
+                {/if}
+              {/each}
+
+              {#if tplVisibleUngrouped.length}
+                <li
+                  class="tpl-group tpl-ungrouped"
+                  class:drop={tplDropGroupId === '__none__'}
+                  ondragover={(e) => {
+                    if (!tplDragId) return
+                    e.preventDefault()
+                    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+                    tplDropGroupId = '__none__'
+                  }}
+                  ondragleave={(e) => {
+                    if (tplDropGroupId === '__none__' && !e.currentTarget.contains(e.relatedTarget)) {
+                      tplDropGroupId = null
+                    }
+                  }}
+                  ondrop={(e) => {
+                    e.preventDefault()
+                    dropTemplateOnGroup('')
+                  }}
+                >
+                  <div class="tpl-group-row">
+                    <span class="tpl-caret-spacer" aria-hidden="true"></span>
+                    <Icon name="file" size={12} />
+                    <span class="tpl-group-name">{t('noGroup')}</span>
+                    <span class="badge neutral sm tabular">{tplVisibleUngrouped.length}</span>
+                  </div>
+                  <ul class="tpl-group-list">
+                    {#each tplVisibleUngrouped as tpl (tpl.id)}
+                      {@render tplRow(tpl)}
+                    {/each}
+                  </ul>
+                </li>
+              {/if}
+            </ul>
+          {/if}
+
+          {#if data.templates.length === 0}
+            <p class="muted small sidebar-empty">{t('noTemplatesDesc')}</p>
+          {:else if tplVisible.length === 0}
+            <p class="muted small sidebar-empty">{t('noMatchingTemplates')}</p>
+          {/if}
         {/if}
       </aside>
 
@@ -1311,6 +1650,18 @@
           <input class="input" bind:this={nameEl} bind:value={active.name} placeholder={t('namePlaceholder')} />
         </label>
 
+        <div class="field">
+          <span class="field-label">{t('templateGroupField')}</span>
+          <Select
+            size="sm"
+            icon="folder"
+            ariaLabel={t('templateGroupField')}
+            value={active.groupId ?? ''}
+            options={tplAssignOptions}
+            onChange={(id) => moveActiveToGroup(id)}
+          />
+        </div>
+
         <div class="field editor-body-field">
           <div class="field-head">
             <label class="field-label" for="msg-body">{t('messageBody')}</label>
@@ -1524,6 +1875,18 @@
 
 {#if showAbout}
   <AboutModal {t} onClose={() => (showAbout = false)} />
+{/if}
+
+{#if showTemplateManager}
+  <TemplateGroupManager
+    groups={data.templateGroups}
+    {t}
+    onCreate={newTemplateGroup}
+    onRename={renameTemplateGroupName}
+    onDelete={removeTemplateGroup}
+    onReparent={reparentTemplateGroup}
+    onClose={() => (showTemplateManager = false)}
+  />
 {/if}
 
 {#if autoFor && active}
