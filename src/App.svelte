@@ -1880,6 +1880,7 @@
 {#if showTemplateManager}
   <TemplateGroupManager
     groups={data.templateGroups}
+    counts={tplGroupCounts}
     {t}
     onCreate={newTemplateGroup}
     onRename={renameTemplateGroupName}
