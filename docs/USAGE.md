@@ -33,7 +33,7 @@ Tidak ada backend. Tidak ada pengiriman otomatis.
   - **Default** (tersimpan sebagai `globals[key]` — dipakai bila kontak tidak punya nilai khusus untuk template aktif).
   - **Remove variable** (tombol hapus — menghapus definisi dari template dan sekaligus menghapus semua token `{{key}}` dari body pesan).
 - `{{nama}}` **bawaan**: selalu diisi dari nama kontak, tidak masuk ke manajer variabel.
-- Urutan nilai: nilai khusus kontak → nama kontak (untuk `{{nama}}`) → nilai bawaan/global → kosong.
+- Urutan nilai: nilai khusus kontak → nama kontak (untuk `{{nama}}`) → nilai otomatis → nilai bawaan/global → kosong.
 
 Contoh body:
 
@@ -56,6 +56,23 @@ https://payment.myryzz.net/
 Terima kasih 🙏
 _MyRyzzNet_
 ```
+
+---
+
+## Nilai otomatis dari tanggal
+
+Tiap variabel punya nilai bawaan manual. Untuk variabel tanggal (mis. `bulan_ini`, `tahun_ini`)
+sebaiknya pakai **Otomatis**:
+
+1. Buka panel **Variabel**, buka template yang dipakai.
+2. Klik **Otomatis** di baris variabel.
+3. Pilih format di modal: tanggal + nama bulan + tahun, nama bulan saja, tahun, nomor bulan,
+   nomor bulan/tahun, nama hari, atau tanggal angka.
+4. Nilainya langsung dipakai di pratinjau, tabel kontak, dan placeholder form tambah kontak.
+
+Nilai diambil dari tanggal perangkat saat pesan ditampilkan, jadi ikut berubah sendiri tiap hari.
+Bahasa nama bulan dan nama hari mengikuti bahasa aplikasi (Indonesia/Inggris). Tombol **Hapus**
+mengembalikan variabel ke nilai bawaan manual. Nilai per kontak tetap menang kalau diisi manual.
 
 ---
 
@@ -155,10 +172,10 @@ Pindah perangkat: pakai **Export** lalu **Import**.
 
 ## 8. Export / Import
 
-**Export** membuat file `wa-broadcast-backup-YYYY-MM-DD.json` berformat `schemaVersion: 2` yang berisi semua template (termasuk definisi variabel `vars` dan nilai bawaan `globals`) serta semua kontak (termasuk `labels`, `values`, dan `sentAt`).
+**Export** membuat file `wa-broadcast-backup-YYYY-MM-DD.json` berformat `schemaVersion: 3` yang berisi semua template (termasuk definisi variabel `vars`, preset otomatis `auto`, dan nilai bawaan `globals`) serta semua kontak (termasuk `labels`, `values`, dan `sentAt`).
 Preferensi bahasa dan tema tidak ikut.
 
-**Import** memvalidasi file dulu (menampilkan jumlah template, kontak, dan label yang ditemukan), lalu menawarkan dua mode. File cadangan `schemaVersion: 1` lama tetap bisa diimpor dan otomatis diupgrade dengan `vars: []` dan `labels: []`:
+**Import** memvalidasi file dulu (menampilkan jumlah template, kontak, dan label yang ditemukan), lalu menawarkan dua mode. File cadangan `schemaVersion: 1` dan `schemaVersion: 2` lama tetap bisa diimpor dan otomatis diupgrade dengan `vars: []`, `auto: {}`, dan `labels: []`:
 
 | Mode | Perilaku |
 |---|---|

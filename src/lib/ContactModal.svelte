@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
   import { normalizePhone, isValidPhone } from './wa.js'
   import { render, resolve, templateVarKeys, varLabel } from './vars.js'
+  import { formatAutoDate, isAutoPreset } from './dates.js'
   import Icon from './Icon.svelte'
   import Preview from './Preview.svelte'
 
@@ -12,6 +13,7 @@
     allContacts = [],
     labelPool = [],
     navList = [],
+    lang = undefined,
     t,
     onSelectContact,
     onOpen,
@@ -37,7 +39,7 @@
   let navIndex = $derived(navList.findIndex((c) => c.id === contact?.id))
   let allKeys = $derived(template ? templateVarKeys(template) : [])
   let missingKeys = $derived(
-    template && contact ? allKeys.filter((k) => !resolve(k, contact, template)) : []
+    template && contact ? allKeys.filter((k) => !resolve(k, contact, template, lang)) : []
   )
   let isSent = $derived(Boolean(template && contact?.sentAt?.[template.id]))
   let availableLabels = $derived(
@@ -358,8 +360,11 @@
             <div class="cmodal-vars">
               {#each vars as v (v)}
                 {@const ownVal = contact.values?.[template.id]?.[v] ?? ''}
-                {@const defaultVal = template?.globals?.[v] ?? ''}
-                {@const isBlank = !resolve(v, contact, template)}
+                {@const autoPreset = template?.auto?.[v]}
+                {@const defaultVal = isAutoPreset(autoPreset)
+                  ? formatAutoDate(autoPreset, new Date(), lang)
+                  : (template?.globals?.[v] ?? '')}
+                {@const isBlank = !resolve(v, contact, template, lang)}
                 <div class="cmodal-var-field" class:blank={isBlank}>
                   <div class="cmodal-var-head">
                     <label class="field-label" for="cvar-{v}">
@@ -397,7 +402,7 @@
 
       <aside class="cmodal-preview-col">
         <Preview
-          text={template ? render(template.body, contact, template) : ''}
+          text={template ? render(template.body, contact, template, lang) : ''}
           emptyLabel={template ? t('previewBodyEmpty') : t('noTemplatesDesc')}
           contactLabel={template ? (contact.name || contact.phone) : ''}
           {t}

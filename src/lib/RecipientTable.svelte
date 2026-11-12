@@ -15,6 +15,7 @@
     onToggleLabelFilter,
     onClearLabelFilter,
     focusedId = null,
+    lang = undefined,
     t,
     onOpen,
     onDelete,
@@ -100,7 +101,7 @@
     if (!template) return 0
     let count = 0
     for (const v of allVars) {
-      if (!resolve(v, contact, template)) count++
+      if (!resolve(v, contact, template, lang)) count++
     }
     return count
   }
@@ -546,12 +547,12 @@
               />
             </label>
             {#each vars as v (v)}
-              {@const blank = !resolve(v, focusContact, template)}
+              {@const blank = !resolve(v, focusContact, template, lang)}
               <label class="rcard-field" class:blank>
                 <span class="rcard-label" title={v}>{varLabel(template, v)}</span>
                 <input
                   class="input rcard-input"
-                  value={resolve(v, focusContact, template)}
+                  value={resolve(v, focusContact, template, lang)}
                   placeholder="-"
                   title={blank ? t('blankValueTitle') : undefined}
                   aria-label={v}
@@ -591,7 +592,7 @@
         <div class="focus-preview">
           {#if template}
             <Preview
-              text={render(template.body, focusContact, template)}
+              text={render(template.body, focusContact, template, lang)}
               emptyLabel={t('previewBodyEmpty')}
               contactLabel=""
               {t}
@@ -702,12 +703,12 @@
                 />
               </label>
               {#each vars as v (v)}
-                {@const blank = !resolve(v, contact, template)}
+                {@const blank = !resolve(v, contact, template, lang)}
                 <label class="rcard-field" class:blank>
                   <span class="rcard-label" title={v}>{varLabel(template, v)}</span>
                   <input
                     class="input rcard-input"
-                    value={resolve(v, contact, template)}
+                    value={resolve(v, contact, template, lang)}
                     placeholder="-"
                     title={blank ? t('blankValueTitle') : undefined}
                     aria-label={v}
@@ -747,7 +748,7 @@
             {#if expandedId === contact.id && template}
               <div class="rcard-preview">
                 <Preview
-                  text={render(template.body, contact, template)}
+                  text={render(template.body, contact, template, lang)}
                   emptyLabel={t('previewBodyEmpty')}
                   contactLabel=""
                   {t}

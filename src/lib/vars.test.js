@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { detectVariables, resolve, render, templateVarKeys, varLabel } from './vars.js'
+import { formatAutoDate } from './dates.js'
 
 const template = { id: 'tpl_1', globals: { invoice: 'GLOBAL-INV' } }
 const contact = { name: 'FENDY', values: { tpl_1: { total: '55.161' } } }
@@ -55,4 +56,35 @@ test('templateVarKeys ignores malformed declared vars and keeps body order stabl
     vars: [null, { key: 'bad key!' }, { key: '' }, { key: 'c', label: 'C' }],
   }
   assert.deepEqual(templateVarKeys(tpl), ['c', 'nama', 'b', 'a'])
+})
+
+test('auto date beats the manual template default', () => {
+  const tpl = { id: 'tpl_1', auto: { bulan: 'monthName' }, globals: { bulan: 'GLOBAL' } }
+  assert.equal(resolve('bulan', contact, tpl), formatAutoDate('monthName'))
+})
+
+test('per-contact value beats the auto date', () => {
+  const tpl = {
+    id: 'tpl_1',
+    auto: { total: 'monthName' },
+    globals: { total: 'GLOBAL' },
+  }
+  assert.equal(resolve('total', contact, tpl), '55.161')
+})
+
+test('invalid auto preset falls through to the manual default', () => {
+  const tpl = { id: 'tpl_1', auto: { bulan: 'nope' }, globals: { bulan: 'GLOBAL' } }
+  assert.equal(resolve('bulan', contact, tpl), 'GLOBAL')
+})
+
+test('auto date works with no contact and no globals', () => {
+  const tpl = { id: 'tpl_1', auto: { tahun: 'year' }, globals: {} }
+  assert.equal(resolve('tahun', null, tpl), formatAutoDate('year'))
+})
+
+test('resolve and render respect explicit lang parameter for auto dates', () => {
+  const tpl = { id: 'tpl_1', auto: { hari: 'dayName' }, globals: {} }
+  assert.equal(resolve('hari', contact, tpl, 'id'), formatAutoDate('dayName', new Date(), 'id'))
+  assert.equal(resolve('hari', contact, tpl, 'en'), formatAutoDate('dayName', new Date(), 'en'))
+  assert.equal(render('Hari {{hari}}', contact, tpl, 'en'), 'Hari ' + formatAutoDate('dayName', new Date(), 'en'))
 })

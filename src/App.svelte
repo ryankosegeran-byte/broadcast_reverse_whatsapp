@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte'
   import * as store from './lib/storage.js'
   import { render, resolve, templateVarKeys, varLabel } from './lib/vars.js'
+  import { formatAutoDate, isAutoPreset } from './lib/dates.js'
   import { normalizePhone, isValidPhone, buildWaUrl } from './lib/wa.js'
   import { wrapMarker } from './lib/waFormat.js'
   import { uniqueLabels, mergeContacts } from './lib/contacts.js'
@@ -14,6 +15,7 @@
   import ContactModal from './lib/ContactModal.svelte'
   import HelpModal from './lib/HelpModal.svelte'
   import AboutModal from './lib/AboutModal.svelte'
+  import AutoDateModal from './lib/AutoDateModal.svelte'
   import EmojiPicker from './lib/EmojiPicker.svelte'
 
   const THEME_KEY = 'wa-broadcast:theme'
@@ -26,6 +28,7 @@
   let blockedUrl = $state('')
   let showHelp = $state(false)
   let showAbout = $state(false)
+  let autoFor = $state(null)
   let showPaste = $state(false)
   let showAdd = $state(false)
   let pasteText = $state('')
@@ -77,10 +80,10 @@
     filteredContacts.find((c) => c.id === previewId) ?? filteredContacts[0] ?? null
   )
   let previewText = $derived(
-    !active ? '' : previewContact ? render(active.body, previewContact, active) : active.body
+    !active ? '' : previewContact ? render(active.body, previewContact, active, lang()) : active.body
   )
   let previewMissing = $derived(
-    active && previewContact ? vars.filter((v) => !resolve(v, previewContact, active)) : []
+    active && previewContact ? vars.filter((v) => !resolve(v, previewContact, active, lang())) : []
   )
   let editingContact = $derived(
     editingId ? data.contacts.find((c) => c.id === editingId) ?? null : null
@@ -173,7 +176,7 @@
       }
     }
     const onKeyDown = (e) => {
-      if (showHelp || showAbout || showImport || showContactImport || editingId) return
+      if (showHelp || showAbout || showImport || showContactImport || editingId || autoFor) return
       if (showAdd) {
         if (e.key === 'Escape') {
           e.preventDefault()
@@ -242,7 +245,7 @@
 
   function newTemplate() {
     const now = new Date().toISOString()
-    const tpl = { id: store.uid('tpl'), name: '', body: '', vars: [], globals: {}, createdAt: now, updatedAt: now }
+    const tpl = { id: store.uid('tpl'), name: '', body: '', vars: [], globals: {}, auto: {}, createdAt: now, updatedAt: now }
     data.templates.push(tpl)
     activeId = tpl.id
     previewId = null
@@ -392,6 +395,15 @@
     active.body = active.body.replace(new RegExp('\\{\\{\\s*' + esc + '\\s*\\}\\}', 'g'), '')
   }
 
+  function autoValue(key) {
+    return formatAutoDate(active?.auto?.[key], new Date(), lang())
+  }
+
+  function clearVarAuto(key) {
+    if (!active?.auto) return
+    delete active.auto[key]
+  }
+
   function pushContact(rawPhone, rawName, values, quiet = false) {
     const phone = normalizePhone(rawPhone)
     if (!isValidPhone(phone)) {
@@ -503,7 +515,7 @@
 
   function openWa(contact) {
     if (!active) return
-    const text = render(active.body, contact, active)
+    const text = render(active.body, contact, active, lang())
     const url = buildWaUrl(contact.phone, text)
     const win = window.open(url, '_blank', 'noopener')
     if (win) {
@@ -575,7 +587,7 @@
   }
 
   function openPasteModal() {
-    if (showHelp || showAbout || showImport || showContactImport || editingId) return
+    if (showHelp || showAbout || showImport || showContactImport || editingId || autoFor) return
     showMobileMenu = false
     showEmoji = false
     showPaste = true
@@ -591,7 +603,7 @@
   }
 
   function openAddModal() {
-    if (showHelp || showAbout || showImport || showContactImport || editingId) return
+    if (showHelp || showAbout || showImport || showContactImport || editingId || autoFor) return
     showMobileMenu = false
     showEmoji = false
     showAdd = true
@@ -982,6 +994,7 @@
           onToggleLabelFilter={toggleLabelFilter}
           onClearLabelFilter={() => (labelFilter = [])}
           focusedId={previewContact?.id ?? null}
+          lang={lang()}
           {t}
           onOpen={openWa}
           onDelete={deleteContact}
@@ -1054,12 +1067,44 @@
                       placeholder={t('varDisplayName')}
                       aria-label={t('varDisplayName') + ' ' + v}
                     />
-                    <input
-                      class="input"
-                      bind:value={() => active.globals[v] ?? '', (val) => (active.globals[v] = val)}
-                      placeholder={t('varDefault')}
-                      aria-label={t('varDefault') + ' ' + v}
-                    />
+                    {#if isAutoPreset(active.auto?.[v])}
+                      <button
+                        class="input auto-display"
+                        type="button"
+                        title={t('autoChange') + ' — ' + autoValue(v)}
+                        onclick={() => (autoFor = v)}
+                      >
+                        <Icon name="calendar" size={12} />
+                        <span>{autoValue(v)}</span>
+                      </button>
+                    {:else}
+                      <input
+                        class="input"
+                        bind:value={() => active.globals[v] ?? '', (val) => (active.globals[v] = val)}
+                        placeholder={t('varDefault')}
+                        aria-label={t('varDefault') + ' ' + v}
+                      />
+                    {/if}
+                  </div>
+                  <div class="var-auto-row">
+                    <button class="btn secondary xs" type="button" onclick={() => (autoFor = v)}>
+                      <Icon name="calendar" size={12} />
+                      <span>{isAutoPreset(active.auto?.[v]) ? t('autoChange') : t('autoSet')}</span>
+                    </button>
+                    {#if isAutoPreset(active.auto?.[v])}
+                      <span class="badge neutral sm" title={t('autoDateTitle')}>
+                        {t('autoPreset_' + active.auto[v])}
+                      </span>
+                      <button
+                        class="btn icon-btn danger-ghost xs"
+                        type="button"
+                        title={t('autoClear')}
+                        aria-label={t('autoClear') + ' ' + v}
+                        onclick={() => clearVarAuto(v)}
+                      >
+                        <Icon name="x" size={12} />
+                      </button>
+                    {/if}
                   </div>
                 </div>
               {/each}
@@ -1304,6 +1349,20 @@
   <AboutModal {t} onClose={() => (showAbout = false)} />
 {/if}
 
+{#if autoFor && active}
+  <AutoDateModal
+    {t}
+    varKey={autoFor}
+    value={active.auto?.[autoFor] ?? ''}
+    lang={lang()}
+    onPick={(preset) => {
+      if (!preset) clearVarAuto(autoFor)
+      else (active.auto ??= {})[autoFor] = preset
+    }}
+    onClose={() => (autoFor = null)}
+  />
+{/if}
+
 {#if showImport && importInfo}
   <ImportDialog
     info={importInfo}
@@ -1403,7 +1462,11 @@
                     <input
                       class="input"
                       bind:value={() => form.values[v] ?? '', (val) => (form.values[v] = val)}
-                      placeholder={active.globals?.[v] ? t('usingDefault', { val: active.globals[v] }) : '-'}
+                      placeholder={isAutoPreset(active.auto?.[v])
+                        ? t('usingDefault', { val: autoValue(v) })
+                        : active.globals?.[v]
+                          ? t('usingDefault', { val: active.globals[v] })
+                          : '-'}
                     />
                   </label>
                 {/each}
@@ -1493,6 +1556,7 @@
     allContacts={data.contacts}
     {labelPool}
     navList={editingNavList}
+    lang={lang()}
     {t}
     onSelectContact={selectEditingContact}
     onOpen={openWa}

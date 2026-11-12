@@ -1,3 +1,5 @@
+import { formatAutoDate, isAutoPreset } from './dates.js'
+
 export const VAR_RE = /\{\{\s*([\w.-]+)\s*\}\}/g
 
 export function detectVariables(body) {
@@ -8,18 +10,20 @@ export function detectVariables(body) {
   return out
 }
 
-/** First non-empty wins: per-contact value, contact name (for `nama`), template globals. */
-export function resolve(key, contact, template) {
+/** First non-empty wins: per-contact value, contact name, auto date, template globals. */
+export function resolve(key, contact, template, lang) {
   const own = template?.id ? contact?.values?.[template.id]?.[key] : undefined
   if (own !== undefined && own !== null && own !== '') return String(own)
   if (key === 'nama' && contact?.name) return contact.name
+  const preset = template?.auto?.[key]
+  if (isAutoPreset(preset)) return formatAutoDate(preset, new Date(), lang)
   const global = template?.globals?.[key]
   if (global !== undefined && global !== null && global !== '') return String(global)
   return ''
 }
 
-export function render(body, contact, template) {
-  return String(body ?? '').replace(VAR_RE, (_, key) => resolve(key, contact, template))
+export function render(body, contact, template, lang) {
+  return String(body ?? '').replace(VAR_RE, (_, key) => resolve(key, contact, template, lang))
 }
 
 /** Keys used by a template: declared vars first, then keys found in the body. */

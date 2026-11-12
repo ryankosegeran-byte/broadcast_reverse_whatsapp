@@ -1,7 +1,8 @@
 import { normalizePhone, isValidPhone } from './wa.js'
 import { mergeContacts, uniqueLabels } from './contacts.js'
+import { isAutoPreset } from './dates.js'
 
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 export const DATA_KEY = 'wa-broadcast:v1'
 export const LANG_KEY = 'wa-broadcast:lang'
 export const CORRUPT_KEY = 'wa-broadcast:v1:corrupt'
@@ -30,6 +31,13 @@ export function migrate(raw) {
       name: String(t.name ?? ''),
       body: String(t.body ?? ''),
       globals: t.globals && typeof t.globals === 'object' ? { ...t.globals } : {},
+      auto: t.auto && typeof t.auto === 'object'
+        ? Object.fromEntries(
+            Object.entries(t.auto).filter(
+              ([key, preset]) => /^[\w.-]+$/.test(key) && isAutoPreset(preset)
+            )
+          )
+        : {},
       vars: Array.isArray(t.vars)
         ? t.vars
             .filter((v) => v && typeof v === 'object' && /^[\w.-]+$/.test(String(v.key ?? '')))
@@ -148,6 +156,11 @@ export function mergeStates(local, incoming) {
     }
     for (const [key, value] of Object.entries(source.globals ?? {})) {
       if (!t.globals[key]) t.globals[key] = value
+    }
+    for (const [key, preset] of Object.entries(source.auto ?? {})) {
+      if (!/^[\w.-]+$/.test(key) || !isAutoPreset(preset)) continue
+      if (!t.auto) t.auto = {}
+      if (!t.auto[key]) t.auto[key] = preset
     }
   }
 

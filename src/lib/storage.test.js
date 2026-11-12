@@ -60,13 +60,14 @@ test('merge keeps local contact data and fills only blanks', () => {
   assert.equal(local.contacts[0].sentAt.t1, '2026-05-05T00:00:00.000Z')
 })
 
-test('migrate upgrades v1 to v2 with labels and vars', () => {
+test('migrate upgrades v1 to v3 with labels, vars, and auto', () => {
   const state = migrate({
     templates: [{ name: 'A', body: '{{x}}' }],
     contacts: [{ phone: '62811111', name: 'Budi' }],
   })
-  assert.equal(state.schemaVersion, 2)
+  assert.equal(state.schemaVersion, 3)
   assert.deepEqual(state.templates[0].vars, [])
+  assert.deepEqual(state.templates[0].auto, {})
   assert.deepEqual(state.contacts[0].labels, [])
 })
 
@@ -105,7 +106,7 @@ test('validateState returns template, contact, and unique label counts for v1 an
     contacts: [{ phone: '0811111111', name: 'Budi' }],
   })
   assert.equal(v1.ok, true)
-  assert.equal(v1.data.schemaVersion, 2)
+  assert.equal(v1.data.schemaVersion, 3)
   assert.deepEqual(v1.counts, { templates: 1, contacts: 1, labels: 0 })
 
   const v2 = validateState({
@@ -117,5 +118,45 @@ test('validateState returns template, contact, and unique label counts for v1 an
     ],
   })
   assert.equal(v2.ok, true)
+  assert.equal(v2.data.schemaVersion, 3)
   assert.deepEqual(v2.counts, { templates: 1, contacts: 2, labels: 2 })
+})
+
+test('migrate keeps valid auto presets and drops invalid ones', () => {
+  const state = migrate({
+    templates: [
+      {
+        name: 'A',
+        body: '{{bulan}} {{tahun}}',
+        auto: { bulan: 'monthName', tahun: 'nope', 'bad key!': 'year' },
+      },
+    ],
+    contacts: [],
+  })
+  assert.deepEqual(state.templates[0].auto, { bulan: 'monthName' })
+})
+
+test('mergeStates fills missing auto entries and keeps local ones', () => {
+  const local = emptyState()
+  local.templates.push({
+    id: 't1',
+    name: 'Bills',
+    body: '',
+    vars: [],
+    globals: {},
+    auto: { bulan: 'monthNum' },
+  })
+  const incoming = emptyState()
+  incoming.templates.push({
+    id: 't1',
+    name: 'Bills',
+    body: '',
+    vars: [],
+    globals: {},
+    auto: { bulan: 'monthName', tahun: 'year' },
+  })
+
+  mergeStates(local, incoming)
+
+  assert.deepEqual(local.templates[0].auto, { bulan: 'monthNum', tahun: 'year' })
 })
