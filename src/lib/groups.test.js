@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   normalizeGroups, syncGroups, createGroup, groupAncestors, labelsForGroup, expandLabels,
   groupOutline, isDescendant, setGroupParent, renameLabel, deleteLabel, assignLabels,
-  filterByLabels, splitBySent,
+  filterByLabels, splitBySent, backfillHierarchy,
 } from './groups.js'
 
 test('normalizeGroups trims, dedupes, and assigns ids', () => {
@@ -133,4 +133,27 @@ test('splitBySent separates by template id', () => {
   assert.deepEqual(sent.map((c) => c.id), ['c1'])
   assert.deepEqual(unsent.map((c) => c.id), ['c2', 'c3'])
   assert.equal(splitBySent(contacts, null).sent.length, 0)
+})
+
+test('backfillHierarchy adds ancestor labels after a reparent, idempotently', () => {
+  const groups = normalizeGroups([{ id: 'k', name: 'Kue' }, { id: 'a', name: 'Agape' }])
+  const contacts = [{ id: 'c1', labels: ['Agape'] }, { id: 'c2', labels: ['Kue'] }]
+  setGroupParent(groups, 'a', 'k')
+  assert.equal(backfillHierarchy(groups, contacts), 1)
+  assert.deepEqual(contacts[0].labels, ['Agape', 'Kue'])
+  assert.deepEqual(contacts[1].labels, ['Kue'])
+  assert.deepEqual(filterByLabels(contacts, ['Kue'], 'and').map((c) => c.id), ['c1', 'c2'])
+  assert.equal(backfillHierarchy(groups, contacts), 0)
+})
+
+test('backfillHierarchy covers a whole subtree moved under a new parent', () => {
+  const groups = normalizeGroups([
+    { id: 'b', name: 'Bolu' },
+    { id: 'k', name: 'Kue' },
+    { id: 'a', name: 'Agape', parentId: 'k' },
+  ])
+  const contacts = [{ id: 'c1', labels: ['Agape', 'Kue'] }]
+  setGroupParent(groups, 'k', 'b')
+  backfillHierarchy(groups, contacts)
+  assert.deepEqual(contacts[0].labels, ['Agape', 'Kue', 'Bolu'])
 })

@@ -14,6 +14,7 @@
     deleteLabel,
     createGroup,
     setGroupParent,
+    backfillHierarchy,
     syncGroups,
   } from './lib/groups.js'
   import { t, lang, setLang, applyLang } from './lib/i18n.svelte.js'
@@ -594,7 +595,11 @@
   }
 
   function reparentGroup(id, parentId) {
-    if (!setGroupParent(data.groups, id, parentId)) notify(t('dragHint'))
+    if (!setGroupParent(data.groups, id, parentId)) {
+      notify(t('dragHint'))
+      return
+    }
+    backfillHierarchy(data.groups, data.contacts)
   }
 
   function toggleSent(contact, sent) {

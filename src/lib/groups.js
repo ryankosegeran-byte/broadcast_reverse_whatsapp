@@ -117,6 +117,33 @@ export function expandLabels(groups, names) {
   return [...new Set(out)]
 }
 
+/**
+ * Restore the parent-implies-child invariant: every contact in a group also carries that group's
+ * ancestor names. Call after a hierarchy change (reparent) so filtering/counting by a parent still
+ * finds subgroup members. Additive only: never strips labels, so it cannot lose user data.
+ * ponytail: does not remove now-stale ancestor labels on un-nest; add if un-nesting should prune.
+ */
+export function backfillHierarchy(groups, contacts) {
+  const byName = new Map(groups.map((g) => [g.name, g]))
+  let changed = 0
+  for (const c of contacts ?? []) {
+    const own = c.labels ?? []
+    const next = [...own]
+    for (const label of own) {
+      const g = byName.get(label)
+      if (!g) continue
+      for (const ancestor of groupAncestors(groups, g.id)) {
+        if (!next.includes(ancestor)) next.push(ancestor)
+      }
+    }
+    if (next.length !== own.length) {
+      c.labels = next
+      changed++
+    }
+  }
+  return changed
+}
+
 /** Flat display order: parents A→Z, each followed by its descendants, with a depth. */
 export function groupOutline(groups) {
   const children = new Map()
