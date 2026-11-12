@@ -14,8 +14,8 @@ Tidak ada backend. Tidak ada pengiriman otomatis.
 3. Atur variabel template (nama tampilan dan nilai bawaan / global) di panel **Variabel** yang terpisah tepat di bawah daftar kontak pada kolom kiri (atau tepat di bawah editor pesan pada tab **Susun** di HP).
 4. Di tampilan desktop, panel **Penerima** berada di bawah daftar **Template** (kolom kiri) dengan kotak pencarian yang selalu tampil dan tombol **+ Tambah**, **Tempel**, serta **CSV/VCF** yang membuka dialog mengambang terpisah di luar box daftar kontak.
 5. Saring penerima lewat chip label atau pencarian, dan centang kontak tertentu jika hanya ingin mengirim ke subset kontak.
-6. Klik kontak di daftar untuk mempratinjau pesannya di panel kanan, klik **Atur** (atau klik ganda baris kontak) untuk membuka modal per nomor berisi tiga bagian terpisah (**Info kontak**, **Label**, **Variabel template**) beserta pratinjau langsung dan tombol **Sebelumnya / Berikutnya**, lalu klik **WA** / **Open WhatsApp**.
-7. Di HP (layar `<= 760px`), app memakai viewport terkunci (`100dvh`) dengan 4 tab di bar bawah (**Template**, **Susun**, **Pratinjau**, **Kirim**) dan menu utilitas (**Bahasa**, **Tema**, **Ekspor**, **Impor**, **Impor CSV / VCF**, **Bantuan**, **Tentang**) di tombol **Menu** kanan atas. Di mode **Kirim**, tersedia tampilan **Daftar** (kartu penuh tanpa scroll menyamping) dan **Fokus** (kirim satu per satu dengan pratinjau langsung), serta tombol **Atur** untuk membuka modal per nomor.
+6. Klik kontak di daftar untuk mempratinjau pesannya di panel kanan, klik **Atur** (atau klik ganda baris kontak) untuk membuka modal per nomor berisi tiga bagian terpisah (**Info kontak**, **Label**, **Variabel template**) beserta pratinjau langsung dan tombol **Sebelumnya / Berikutnya**, lalu klik **Kirim** / **Open WhatsApp**.
+7. Di HP (layar `<= 760px`), app memakai viewport terkunci (`100dvh`) dengan 4 tab di bar bawah (**Template**, **Susun**, **Pratinjau**, **Kirim**) dan menu utilitas (**Bahasa**, **Tema**, **Ekspor**, **Impor**, **Impor CSV / VCF**, **Bantuan**, **Tentang**) di tombol **Menu** kanan atas. Di mode **Kirim**, tersedia tampilan **Daftar** (daftar kontak ringkas siap klik **Kirim** langsung, atau centang penerima lalu aktifkan **Terpilih saja**) dan **Fokus** (kirim satu per satu dengan pratinjau langsung), serta tombol **Atur** untuk membuka modal per nomor.
 8. WhatsApp terbuka dengan teks terisi → **tekan Send sendiri**.
 9. Penghapusan template atau kontak dikonfirmasi langsung di tempat (tekan `Escape` atau **Cancel** untuk membatalkan).
 
@@ -119,9 +119,9 @@ Klik **Import CSV / VCF** di header panel penerima (atau di tombol **Menu** pada
 
 ## 4. Label, filter, dan seleksi
 
-- **Multi-label per kontak**: setiap kontak dapat memiliki lebih dari satu label bebas (contoh: `VIP`, `Jatuh Tempo`). Tambah atau hapus chip label di modal per nomor (**Atur** → bagian **Label**) dengan saran label yang sudah ada, atau langsung di kartu kontak mobile. Warna chip dihitung otomatis dari nama label.
+- **Multi-label per kontak**: setiap kontak dapat memiliki lebih dari satu label bebas (contoh: `VIP`, `Jatuh Tempo`). Tambah atau hapus chip label di modal per nomor (**Atur** → bagian **Label**) dengan saran label yang sudah ada. Warna chip dihitung otomatis dari nama label.
 - **Filter label (OR)**: bila ada minimal satu label pada kontak, bar filter label muncul di atas daftar penerima. Mengklik satu atau lebih chip label menampilkan kontak yang memiliki **salah satu** label yang dipilih (semantik OR). Klik **Clear** atau nonaktifkan chip untuk menampilkan semua kontak kembali. Filter label dapat digabung dengan kotak pencarian nama/nomor.
-- **Seleksi & working set**: setiap baris daftar dan kartu mobile memiliki kotak centang, disertai **Select all** / **Clear selection** yang berlaku pada daftar yang sedang tampil (setelah filter + pencarian). Bila ada satu atau lebih kontak yang dicentang, ringkasan penerima serta navigasi modal / mode **Fokus** bekerja pada subset yang dicentang (pilihan bersifat sementara di sesi UI dan tidak ikut disimpan).
+- **Seleksi & working set**: setiap baris daftar memiliki kotak centang, disertai **Select all** / **Clear selection** yang berlaku pada daftar yang sedang tampil (setelah filter + pencarian). Bila ada satu atau lebih kontak yang dicentang, muncul bar seleksi untuk menyaring daftar (**Terpilih saja**), melangkah ke mode **Fokus**, serta membatasi navigasi modal pada subset yang dicentang (pilihan bersifat sementara di sesi UI dan tidak ikut disimpan).
 
 ### Modal kelola per nomor
 
@@ -137,7 +137,7 @@ Di sisi kanan modal tampil **Pratinjau** pesan WhatsApp secara langsung, tombol 
 
 ## 5. Badge dan status
 
-- Badge `{n} kosong` pada baris kontak (atau garis batas kuning/amber pada input di modal / kartu mobile) menandakan ada variabel yang masih kosong. Pesan tetap bisa dikirim, variabelnya jadi kosong.
+- Badge `{n} kosong` pada baris kontak (atau garis batas kuning/amber pada input di modal) menandakan ada variabel yang masih kosong. Pesan tetap bisa dikirim, variabelnya jadi kosong.
 - Badge **Opened** (atau **Dibuka** di mode Indonesia) pada kontak = nomor itu sudah dibuka di WhatsApp untuk template aktif. Ini penanda lokal, **bukan** bukti pesan terkirim.
 - Badge ini hilang kalau kontak dihapus atau data diimpor dengan mode **Replace all**.
 

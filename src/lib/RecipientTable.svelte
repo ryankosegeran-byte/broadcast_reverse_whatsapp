@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte'
-  import { render, resolve, templateVarKeys, varLabel } from './vars.js'
+  import { render, resolve, templateVarKeys } from './vars.js'
   import Icon from './Icon.svelte'
   import Preview from './Preview.svelte'
 
@@ -9,7 +9,6 @@
     allContactIds = [],
     totalCount = contacts.length,
     template,
-    vars,
     labelPool = [],
     labelFilter = [],
     onToggleLabelFilter,
@@ -26,9 +25,8 @@
   let query = $state('')
   let confirmId = $state(null)
   let sendMode = $state('list')
-  let expandedId = $state(null)
   let selected = $state([])
-  let labelDraft = $state({})
+  let selectedOnly = $state(false)
 
   let allVars = $derived(template ? templateVarKeys(template) : [])
 
@@ -38,6 +36,12 @@
       const q = query.trim().toLowerCase()
       return c.phone.includes(q) || (c.name ?? '').toLowerCase().includes(q)
     })
+  )
+
+  let effectiveSelectedOnly = $derived(selectedOnly && selected.length > 0)
+
+  let listContacts = $derived(
+    effectiveSelectedOnly ? shown.filter((c) => selected.includes(c.id)) : shown
   )
 
   let scope = $derived(
@@ -63,7 +67,10 @@
   )
 
   $effect(() => {
-    if (!selected.length) return
+    if (!selected.length) {
+      if (selectedOnly) selectedOnly = false
+      return
+    }
     const validIds = new Set(allContactIds.length ? allContactIds : contacts.map((c) => c.id))
     if (selected.some((id) => !validIds.has(id))) {
       selected = selected.filter((id) => validIds.has(id))
@@ -90,13 +97,6 @@
     }
   })
 
-  function setValue(contact, key, value) {
-    if (!template) return
-    contact.values ??= {}
-    contact.values[template.id] ??= {}
-    contact.values[template.id][key] = value
-  }
-
   function missingCountFor(contact) {
     if (!template) return 0
     let count = 0
@@ -108,7 +108,6 @@
 
   function confirmRemove(contact) {
     confirmId = null
-    if (expandedId === contact.id) expandedId = null
     selected = selected.filter((id) => id !== contact.id)
     onDelete(contact)
   }
@@ -133,38 +132,19 @@
 
   function clearSelection() {
     selected = []
+    selectedOnly = false
   }
 
-  function addLabel(contact, raw) {
-    const name = String(raw ?? '').trim()
-    if (!name) return
-    contact.labels ??= []
-    for (const part of name.split(/[;|,]/).map((s) => s.trim()).filter(Boolean)) {
-      if (!contact.labels.includes(part)) contact.labels.push(part)
-    }
-  }
-
-  function removeLabel(contact, label) {
-    contact.labels = (contact.labels ?? []).filter((l) => l !== label)
-  }
-
-  function commitLabelDraft(contact) {
-    const draft = labelDraft[contact.id]
-    if (draft) addLabel(contact, draft)
-    labelDraft[contact.id] = ''
-  }
-
-  function toggleCardPreview(contact) {
-    if (expandedId === contact.id) {
-      expandedId = null
-    } else {
-      expandedId = contact.id
-      onFocus?.(contact)
-    }
-  }
-
-  function enterFocus(contact) {
+  function handleIdentityClick(contact) {
     onFocus?.(contact)
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches) {
+      toggleSelect(contact)
+    }
+  }
+
+  function startFocusQueue() {
+    const target = scope.find((c) => !(template && c.sentAt?.[template.id])) ?? scope[0]
+    if (target) onFocus?.(target)
     sendMode = 'focus'
   }
 
@@ -189,10 +169,6 @@
     t('openedProgress', { sent: sentCount, total: scope.length })
   )
 </script>
-
-<datalist id="label-pool">
-  {#each labelPool as label (label)}<option value={label}></option>{/each}
-</datalist>
 
 <div class="table-tools">
   <div class="search-field">
@@ -239,7 +215,7 @@
 {/if}
 
 {#if totalCount > 0}
-  <div class="select-bar">
+  <div class="list-controls">
     <label class="select-all-check">
       <input
         type="checkbox"
@@ -250,51 +226,86 @@
       />
       <span>{t('selectAll')}</span>
     </label>
-    {#if selected.length}
-      <span class="badge neutral sm tabular">{t('selectedCount', { n: selected.length })}</span>
-      <button class="btn ghost xs" type="button" onclick={clearSelection}>{t('selectNone')}</button>
-    {/if}
-    <span class="badge neutral sm tabular select-bar-count">{countLabel}</span>
-  </div>
-{/if}
 
-{#if totalCount > 0}
-  <div class="mobile-send-bar">
-    <div
-      class="segmented send-mode-seg"
-      role="group"
-      aria-label={t('navSend')}
-      style="--seg-idx: {sendMode === 'focus' ? 1 : 0}"
-    >
-      <span class="segmented-thumb" aria-hidden="true"></span>
-      <button
-        type="button"
-        class="segmented-btn"
-        aria-pressed={sendMode === 'list'}
-        onclick={() => (sendMode = 'list')}
-      >
-        <Icon name="list" size={13} />
-        <span>{t('sendModeList')}</span>
-      </button>
-      <button
-        type="button"
-        class="segmented-btn"
-        aria-pressed={sendMode === 'focus'}
-        onclick={() => (sendMode = 'focus')}
-      >
-        <Icon name="user" size={13} />
-        <span>{t('sendModeFocus')}</span>
-      </button>
-    </div>
-    {#if template}
-      <span class="badge {sentCount > 0 ? 'success' : 'neutral'} sm tabular">
-        {#if sentCount > 0}
-          <span class="badge-dot" aria-hidden="true"></span>
+    <div class="list-controls-right">
+      <span class="badge neutral sm tabular desktop-only-count">{countLabel}</span>
+
+      <div class="mobile-send-bar">
+        {#if template}
+          <span class="badge {sentCount > 0 ? 'success' : 'neutral'} sm tabular">
+            {#if sentCount > 0}
+              <span class="badge-dot" aria-hidden="true"></span>
+            {/if}
+            {progressLabel}
+          </span>
         {/if}
-        {progressLabel}
-      </span>
-    {/if}
+        <div
+          class="segmented send-mode-seg"
+          role="group"
+          aria-label={t('navSend')}
+          style="--seg-idx: {sendMode === 'focus' ? 1 : 0}"
+        >
+          <span class="segmented-thumb" aria-hidden="true"></span>
+          <button
+            type="button"
+            class="segmented-btn"
+            aria-pressed={sendMode === 'list'}
+            onclick={() => (sendMode = 'list')}
+          >
+            <Icon name="list" size={13} />
+            <span>{t('sendModeList')}</span>
+          </button>
+          <button
+            type="button"
+            class="segmented-btn"
+            aria-pressed={sendMode === 'focus'}
+            onclick={() => (sendMode = 'focus')}
+          >
+            <Icon name="user" size={13} />
+            <span>{t('sendModeFocus')}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
+
+  {#if selected.length > 0}
+    <div class="selection-queue" role="region" aria-label={t('selectedCount', { n: selected.length })}>
+      <span class="selection-queue-count tabular">
+        <span class="badge-dot" aria-hidden="true"></span>
+        {t('selectedCount', { n: selected.length })}
+      </span>
+      <div class="selection-queue-actions">
+        {#if sendMode === 'list'}
+          <button
+            type="button"
+            class="btn xs selection-filter-btn {effectiveSelectedOnly ? 'primary' : 'secondary'}"
+            aria-pressed={effectiveSelectedOnly}
+            onclick={() => (selectedOnly = !selectedOnly)}
+          >
+            {t('selectedOnly')}
+          </button>
+          <button
+            type="button"
+            class="btn wa xs mobile-queue-focus"
+            onclick={startFocusQueue}
+          >
+            <Icon name="send" size={12} />
+            <span>{t('sendModeFocus')}</span>
+          </button>
+        {/if}
+        <button
+          type="button"
+          class="btn icon-btn ghost xs"
+          aria-label={t('selectNone')}
+          title={t('selectNone')}
+          onclick={clearSelection}
+        >
+          <Icon name="x" size={13} />
+        </button>
+      </div>
+    </div>
+  {/if}
 {/if}
 
 {#if totalCount === 0}
@@ -304,7 +315,7 @@
     </div>
     <p>{t('noContacts')}</p>
   </div>
-{:else if shown.length === 0}
+{:else if shown.length === 0 || (sendMode === 'list' && listContacts.length === 0)}
   <div class="empty-state compact">
     <p>{t('noMatches')}</p>
     <div class="empty-actions">
@@ -318,17 +329,24 @@
           {t('clearFilters')}
         </button>
       {/if}
+      {#if effectiveSelectedOnly}
+        <button class="btn secondary sm" type="button" onclick={() => (selectedOnly = false)}>
+          {t('selectedOnly')}
+        </button>
+      {/if}
     </div>
   </div>
 {:else}
-  <div class="clist" role="list">
-    {#each shown as contact (contact.id)}
+  <div class="clist" data-mobile-mode={sendMode} role="list">
+    {#each listContacts as contact (contact.id)}
       {@const isSent = Boolean(template && contact.sentAt?.[template.id])}
       {@const missingCount = missingCountFor(contact)}
       {@const isFocused = focusedId === contact.id}
+      {@const isSelected = selected.includes(contact.id)}
       <div
         class="clist-row"
         class:focused={isFocused}
+        class:selected={isSelected}
         class:sent={isSent}
         role="listitem"
         ondblclick={(e) => {
@@ -351,17 +369,19 @@
           </div>
         {:else}
           <div class="clist-top">
-            <input
-              type="checkbox"
-              aria-label={t('selectAll')}
-              checked={selected.includes(contact.id)}
-              onclick={(e) => e.stopPropagation()}
-              onchange={() => toggleSelect(contact)}
-            />
+            <label class="clist-check">
+              <input
+                type="checkbox"
+                aria-label={contact.name || contact.phone}
+                checked={isSelected}
+                onclick={(e) => e.stopPropagation()}
+                onchange={() => toggleSelect(contact)}
+              />
+            </label>
             <button
               type="button"
               class="clist-identity"
-              onclick={() => onFocus?.(contact)}
+              onclick={() => handleIdentityClick(contact)}
             >
               <span class="clist-name" class:mono={!contact.name}>
                 {contact.name || contact.phone}
@@ -426,8 +446,8 @@
                 class="btn wa xs"
                 type="button"
                 disabled={!template}
-                aria-label={t('openWa')}
-                title={template ? t('openWa') : t('needTemplateToSend')}
+                aria-label={isSent ? t('openAgainWa') : t('openWa')}
+                title={template ? (isSent ? t('openAgainWa') : t('openWa')) : t('needTemplateToSend')}
                 onclick={(e) => {
                   e.stopPropagation()
                   onFocus?.(contact)
@@ -444,192 +464,152 @@
     {/each}
   </div>
 
-  <div class="mobile-send">
-    {#if sendMode === 'focus'}
+  {#if sendMode === 'focus'}
+    <div class="mobile-send">
       {#if focusContact}
-      {@const isSent = Boolean(template && focusContact.sentAt?.[template.id])}
-      {@const missing = missingCountFor(focusContact) > 0}
-      <div class="focus-deck">
-        <div class="focus-stepper">
-          <button
-            class="btn secondary sm icon-btn"
-            type="button"
-            disabled={focusIndex <= 0}
-            aria-label={t('prevContact')}
-            onclick={() => stepFocus(-1)}
-          >
-            <Icon name="chevron-left" size={16} />
-          </button>
-          <div class="focus-status">
-            <span class="focus-counter tabular">
-              {t('counterOf', { current: focusIndex + 1, total: scope.length })}
-            </span>
-            {#if template}
-              {#if isSent}
-                <span class="badge success sm">
-                  <span class="badge-dot" aria-hidden="true"></span>
-                  {t('opened')}
-                </span>
-              {:else if missing}
-                <span class="badge warn sm">{t('missingVarsBadge')}</span>
-              {:else}
-                <span class="badge neutral sm">{t('readyBadge')}</span>
+        {@const isSent = Boolean(template && focusContact.sentAt?.[template.id])}
+        {@const missing = missingCountFor(focusContact) > 0}
+        <div class="focus-deck">
+          <div class="focus-stepper">
+            <button
+              class="btn secondary sm icon-btn"
+              type="button"
+              disabled={focusIndex <= 0}
+              aria-label={t('prevContact')}
+              onclick={() => stepFocus(-1)}
+            >
+              <Icon name="chevron-left" size={16} />
+            </button>
+            <div class="focus-status">
+              <span class="focus-counter tabular">
+                {t('counterOf', { current: focusIndex + 1, total: scope.length })}
+              </span>
+              {#if template}
+                {#if isSent}
+                  <span class="badge success sm">
+                    <span class="badge-dot" aria-hidden="true"></span>
+                    {t('opened')}
+                  </span>
+                {:else if missing}
+                  <span class="badge warn sm">{t('missingVarsBadge')}</span>
+                {:else}
+                  <span class="badge neutral sm">{t('readyBadge')}</span>
+                {/if}
+              {/if}
+            </div>
+            <button
+              class="btn secondary sm icon-btn"
+              type="button"
+              disabled={focusIndex >= scope.length - 1}
+              aria-label={t('nextContact')}
+              onclick={() => stepFocus(1)}
+            >
+              <Icon name="chevron-right" size={16} />
+            </button>
+          </div>
+
+          <article class="focus-card" class:sent={isSent}>
+            {#if confirmId === focusContact.id}
+              <div class="tpl-confirm" data-confirm-id={focusContact.id} role="group" aria-label={t('confirmDeletePrompt')}>
+                <span class="tpl-confirm-label">{t('deleteContactAria', { name: focusContact.name || focusContact.phone })}</span>
+                <div class="tpl-confirm-actions">
+                  <button class="confirm-btn" type="button" onclick={() => (confirmId = null)}>
+                    {t('cancel')}
+                  </button>
+                  <button class="confirm-btn danger" type="button" onclick={() => confirmRemove(focusContact)}>
+                    {t('delete')}
+                  </button>
+                </div>
+              </div>
+            {:else}
+              <div class="focus-card-top">
+                <label class="clist-check">
+                  <input
+                    type="checkbox"
+                    aria-label={focusContact.name || focusContact.phone}
+                    checked={selected.includes(focusContact.id)}
+                    onchange={() => toggleSelect(focusContact)}
+                  />
+                </label>
+                <div class="focus-card-id">
+                  <span class="clist-name" class:mono={!focusContact.name}>
+                    {focusContact.name || focusContact.phone}
+                  </span>
+                  {#if focusContact.name}
+                    <span class="clist-phone mono tabular">{focusContact.phone}</span>
+                  {/if}
+                </div>
+                <div class="focus-card-actions">
+                  <button
+                    class="btn secondary xs"
+                    type="button"
+                    onclick={() => openModalFor(focusContact)}
+                  >
+                    <Icon name="edit" size={12} />
+                    <span>{t('manageContact')}</span>
+                  </button>
+                  <button
+                    class="btn icon-btn danger-ghost xs"
+                    type="button"
+                    title={t('delete')}
+                    aria-label={t('deleteContactAria', { name: focusContact.name || focusContact.phone })}
+                    onclick={() => (confirmId = focusContact.id)}
+                  >
+                    <Icon name="trash" size={13} />
+                  </button>
+                </div>
+              </div>
+              {#if (focusContact.labels ?? []).length}
+                <div class="focus-card-labels">
+                  {#each focusContact.labels ?? [] as label (label)}
+                    <span class="label-chip" style="--label-hue:{labelHue(label)}">{label}</span>
+                  {/each}
+                </div>
               {/if}
             {/if}
-          </div>
-          <button
-            class="btn secondary sm icon-btn"
-            type="button"
-            disabled={focusIndex >= scope.length - 1}
-            aria-label={t('nextContact')}
-            onclick={() => stepFocus(1)}
-          >
-            <Icon name="chevron-right" size={16} />
-          </button>
-        </div>
+          </article>
 
-        <article class="rcard" class:sent={isSent}>
-          {#if confirmId === focusContact.id}
-            <div class="tpl-confirm rcard-confirm" data-confirm-id={focusContact.id} role="group" aria-label={t('confirmDeletePrompt')}>
-              <span class="tpl-confirm-label">{t('deleteContactAria', { name: focusContact.name || focusContact.phone })}</span>
-              <div class="tpl-confirm-actions">
-                <button class="confirm-btn" type="button" onclick={() => (confirmId = null)}>
-                  {t('cancel')}
-                </button>
-                <button class="confirm-btn danger" type="button" onclick={() => confirmRemove(focusContact)}>
-                  {t('delete')}
-                </button>
-              </div>
-            </div>
-          {:else}
-            <header class="rcard-head">
-              <div class="rcard-id">
-                <input
-                  type="checkbox"
-                  aria-label={t('selectAll')}
-                  checked={selected.includes(focusContact.id)}
-                  onchange={() => toggleSelect(focusContact)}
-                />
-                <span class="rcard-num tabular">#{focusIndex + 1}</span>
-                <span class="rcard-phone tabular">{focusContact.phone}</span>
-              </div>
-              <div class="row gap">
-                <button
-                  class="btn secondary xs"
-                  type="button"
-                  onclick={() => openModalFor(focusContact)}
-                >
-                  <Icon name="edit" size={12} />
-                  <span>{t('manageContact')}</span>
-                </button>
-                <button
-                  class="btn icon-btn danger-ghost sm"
-                  type="button"
-                  title={t('delete')}
-                  aria-label={t('deleteContactAria', { name: focusContact.name || focusContact.phone })}
-                  onclick={() => (confirmId = focusContact.id)}
-                >
-                  <Icon name="trash" size={14} />
-                </button>
-              </div>
-            </header>
-          {/if}
-
-          <div class="rcard-fields">
-            <label class="rcard-field">
-              <span class="rcard-label">{t('name')}</span>
-              <input
-                class="input rcard-input"
-                value={focusContact.name}
-                placeholder="-"
-                aria-label={t('name')}
-                oninput={(e) => (focusContact.name = e.currentTarget.value)}
+          <div class="focus-preview">
+            {#if template}
+              <Preview
+                text={render(template.body, focusContact, template, lang)}
+                emptyLabel={t('previewBodyEmpty')}
+                contactLabel=""
+                {t}
               />
-            </label>
-            {#each vars as v (v)}
-              {@const blank = !resolve(v, focusContact, template, lang)}
-              <label class="rcard-field" class:blank>
-                <span class="rcard-label" title={v}>{varLabel(template, v)}</span>
-                <input
-                  class="input rcard-input"
-                  value={resolve(v, focusContact, template, lang)}
-                  placeholder="-"
-                  title={blank ? t('blankValueTitle') : undefined}
-                  aria-label={v}
-                  oninput={(e) => setValue(focusContact, v, e.currentTarget.value)}
-                />
-              </label>
-            {/each}
-          </div>
-
-          <div class="label-editor">
-            {#each focusContact.labels ?? [] as label (label)}
-              <span class="label-chip" style="--label-hue:{labelHue(label)}">
-                {label}
-                <button class="label-chip-x" type="button" aria-label={t('removeLabel')} onclick={() => removeLabel(focusContact, label)}>
-                  <Icon name="x" size={11} />
-                </button>
-              </span>
-            {/each}
-            <input
-              class="label-add-input"
-              list="label-pool"
-              value={labelDraft[focusContact.id] ?? ''}
-              placeholder="+ {t('labelPlaceholder')}"
-              aria-label={t('addLabel')}
-              oninput={(e) => (labelDraft[focusContact.id] = e.currentTarget.value)}
-              onchange={() => commitLabelDraft(focusContact)}
-              onkeydown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  commitLabelDraft(focusContact)
-                }
-              }}
-            />
-          </div>
-        </article>
-
-        <div class="focus-preview">
-          {#if template}
-            <Preview
-              text={render(template.body, focusContact, template, lang)}
-              emptyLabel={t('previewBodyEmpty')}
-              contactLabel=""
-              {t}
-            />
-            {#if missing}
-              <div class="inline-alert warning">
+              {#if missing}
+                <div class="inline-alert warning">
+                  <Icon name="alert" size={15} />
+                  <span>{t('emptyValueWarn')}</span>
+                </div>
+              {/if}
+            {:else}
+              <div class="inline-alert">
                 <Icon name="alert" size={15} />
-                <span>{t('emptyValueWarn')}</span>
+                <span>{t('needTemplateToSend')}</span>
               </div>
             {/if}
-          {:else}
-            <div class="inline-alert">
-              <Icon name="alert" size={15} />
-              <span>{t('needTemplateToSend')}</span>
-            </div>
-          {/if}
-        </div>
+          </div>
 
-        <div class="focus-actions">
-          <button
-            class="btn wa rcard-send"
-            type="button"
-            disabled={!template}
-            title={template ? t('openWa') : t('needTemplateToSend')}
-            onclick={() => onOpen(focusContact)}
-          >
-            <Icon name="external" size={15} />
-            <span>{isSent ? t('openAgainWa') : t('openWa')}</span>
-          </button>
-          {#if focusIndex < scope.length - 1}
-            <button class="btn primary rcard-next" type="button" onclick={() => stepFocus(1)}>
-              <span>{t('nextContact')}</span>
-              <Icon name="chevron-right" size={15} />
+          <div class="focus-actions">
+            <button
+              class="btn wa focus-send"
+              type="button"
+              disabled={!template}
+              title={template ? (isSent ? t('openAgainWa') : t('openWa')) : t('needTemplateToSend')}
+              onclick={() => onOpen(focusContact)}
+            >
+              <Icon name="external" size={15} />
+              <span>{isSent ? t('openAgainWa') : t('openWa')}</span>
             </button>
-          {/if}
+            {#if focusIndex < scope.length - 1}
+              <button class="btn primary focus-next" type="button" onclick={() => stepFocus(1)}>
+                <span>{t('nextContact')}</span>
+                <Icon name="chevron-right" size={15} />
+              </button>
+            {/if}
+          </div>
         </div>
-      </div>
       {:else}
         <div class="empty-state compact">
           <p>{t('noMatches')}</p>
@@ -640,173 +620,6 @@
           {/if}
         </div>
       {/if}
-    {:else}
-      <div class="rcard-list">
-        {#each shown as contact, i (contact.id)}
-          {@const isSent = Boolean(template && contact.sentAt?.[template.id])}
-          {@const missing = missingCountFor(contact) > 0}
-          <article class="rcard" class:sent={isSent}>
-            {#if confirmId === contact.id}
-              <div class="tpl-confirm rcard-confirm" data-confirm-id={contact.id} role="group" aria-label={t('confirmDeletePrompt')}>
-                <span class="tpl-confirm-label">{t('deleteContactAria', { name: contact.name || contact.phone })}</span>
-                <div class="tpl-confirm-actions">
-                  <button class="confirm-btn" type="button" onclick={() => (confirmId = null)}>
-                    {t('cancel')}
-                  </button>
-                  <button class="confirm-btn danger" type="button" onclick={() => confirmRemove(contact)}>
-                    {t('delete')}
-                  </button>
-                </div>
-              </div>
-            {:else}
-              <header class="rcard-head">
-                <div class="rcard-id">
-                  <input
-                    type="checkbox"
-                    aria-label={t('selectAll')}
-                    checked={selected.includes(contact.id)}
-                    onchange={() => toggleSelect(contact)}
-                  />
-                  <span class="rcard-num tabular">#{i + 1}</span>
-                  <span class="rcard-phone tabular">{contact.phone}</span>
-                  {#if isSent}
-                    <span class="badge success sm">
-                      <span class="badge-dot" aria-hidden="true"></span>
-                      {t('opened')}
-                    </span>
-                  {:else if missing}
-                    <span class="badge warn sm">{t('missingVarsBadge')}</span>
-                  {/if}
-                </div>
-                <button
-                  class="btn icon-btn danger-ghost sm"
-                  type="button"
-                  title={t('delete')}
-                  aria-label={t('deleteContactAria', { name: contact.name || contact.phone })}
-                  onclick={() => (confirmId = contact.id)}
-                >
-                  <Icon name="trash" size={14} />
-                </button>
-              </header>
-            {/if}
-
-            <div class="rcard-fields">
-              <label class="rcard-field">
-                <span class="rcard-label">{t('name')}</span>
-                <input
-                  class="input rcard-input"
-                  value={contact.name}
-                  placeholder="-"
-                  aria-label={t('name')}
-                  onfocus={() => onFocus?.(contact)}
-                  oninput={(e) => (contact.name = e.currentTarget.value)}
-                />
-              </label>
-              {#each vars as v (v)}
-                {@const blank = !resolve(v, contact, template, lang)}
-                <label class="rcard-field" class:blank>
-                  <span class="rcard-label" title={v}>{varLabel(template, v)}</span>
-                  <input
-                    class="input rcard-input"
-                    value={resolve(v, contact, template, lang)}
-                    placeholder="-"
-                    title={blank ? t('blankValueTitle') : undefined}
-                    aria-label={v}
-                    onfocus={() => onFocus?.(contact)}
-                    oninput={(e) => setValue(contact, v, e.currentTarget.value)}
-                  />
-                </label>
-              {/each}
-            </div>
-
-            <div class="label-editor">
-              {#each contact.labels ?? [] as label (label)}
-                <span class="label-chip" style="--label-hue:{labelHue(label)}">
-                  {label}
-                  <button class="label-chip-x" type="button" aria-label={t('removeLabel')} onclick={() => removeLabel(contact, label)}>
-                    <Icon name="x" size={11} />
-                  </button>
-                </span>
-              {/each}
-              <input
-                class="label-add-input"
-                list="label-pool"
-                value={labelDraft[contact.id] ?? ''}
-                placeholder="+ {t('labelPlaceholder')}"
-                aria-label={t('addLabel')}
-                oninput={(e) => (labelDraft[contact.id] = e.currentTarget.value)}
-                onchange={() => commitLabelDraft(contact)}
-                onkeydown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    commitLabelDraft(contact)
-                  }
-                }}
-              />
-            </div>
-
-            {#if expandedId === contact.id && template}
-              <div class="rcard-preview">
-                <Preview
-                  text={render(template.body, contact, template, lang)}
-                  emptyLabel={t('previewBodyEmpty')}
-                  contactLabel=""
-                  {t}
-                />
-                {#if missing}
-                  <div class="inline-alert warning">
-                    <Icon name="alert" size={15} />
-                    <span>{t('emptyValueWarn')}</span>
-                  </div>
-                {/if}
-              </div>
-            {/if}
-
-            <div class="rcard-actions">
-              <button
-                class="btn wa sm rcard-send"
-                type="button"
-                disabled={!template}
-                title={template ? t('openWa') : t('needTemplateToSend')}
-                onclick={() => onOpen(contact)}
-              >
-                <Icon name="external" size={14} />
-                <span>{t('openWa')}</span>
-              </button>
-              <button
-                class="btn sm secondary"
-                type="button"
-                onclick={() => openModalFor(contact)}
-              >
-                <Icon name="edit" size={14} />
-                <span class="rcard-btn-label">{t('manageContact')}</span>
-              </button>
-              {#if template}
-                <button
-                  class="btn sm rcard-preview-btn {expandedId === contact.id ? 'active-toggle' : 'secondary'}"
-                  type="button"
-                  aria-expanded={expandedId === contact.id}
-                  aria-label={expandedId === contact.id ? t('hidePreview') : t('showPreview')}
-                  title={expandedId === contact.id ? t('hidePreview') : t('showPreview')}
-                  onclick={() => toggleCardPreview(contact)}
-                >
-                  <Icon name="eye" size={14} />
-                  <span class="rcard-btn-label">{expandedId === contact.id ? t('hidePreview') : t('showPreview')}</span>
-                </button>
-              {/if}
-              <button
-                class="btn icon-btn secondary sm"
-                type="button"
-                title={t('focusOne')}
-                aria-label={t('focusOne')}
-                onclick={() => enterFocus(contact)}
-              >
-                <Icon name="user" size={14} />
-              </button>
-            </div>
-          </article>
-        {/each}
-      </div>
-    {/if}
-  </div>
+    </div>
+  {/if}
 {/if}

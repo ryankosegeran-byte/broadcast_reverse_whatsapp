@@ -910,7 +910,10 @@
         <div class="mobile-tpl-bar" class:empty-tpl={!active}>
           {#if active}
             <label class="mobile-tpl-picker">
-              <span class="mobile-tpl-caption">{t('activeTemplate')}</span>
+              <span class="mobile-tpl-icon" aria-hidden="true">
+                <Icon name="file" size={14} />
+              </span>
+              <span class="sr-only">{t('activeTemplate')}</span>
               <select
                 class="input mobile-tpl-select"
                 value={activeId}
@@ -927,7 +930,7 @@
               type="button"
               onclick={() => switchMobileTab('compose')}
             >
-              <Icon name="edit" size={14} />
+              <Icon name="edit" size={13} />
               <span>{t('navCompose')}</span>
             </button>
           {:else}
@@ -947,7 +950,7 @@
           <div class="recipients-actions" role="group" aria-label={t('recipients')}>
             <button
               bind:this={addBtnEl}
-              class="btn sm primary"
+              class="btn sm {data.contacts.length ? 'secondary' : 'primary'}"
               type="button"
               aria-haspopup="dialog"
               aria-label={t('addContact')}
@@ -988,7 +991,6 @@
           allContactIds={data.contacts.map((c) => c.id)}
           totalCount={data.contacts.length}
           template={active}
-          vars={valueVars}
           {labelPool}
           {labelFilter}
           onToggleLabelFilter={toggleLabelFilter}
@@ -1119,7 +1121,10 @@
       <section class="panel editor" aria-label={t('messageBody')}>
         <div class="mobile-tpl-bar">
           <label class="mobile-tpl-picker">
-            <span class="mobile-tpl-caption">{t('activeTemplate')}</span>
+            <span class="mobile-tpl-icon" aria-hidden="true">
+              <Icon name="file" size={14} />
+            </span>
+            <span class="sr-only">{t('activeTemplate')}</span>
             <select
               class="input mobile-tpl-select"
               value={activeId}
@@ -1257,7 +1262,7 @@
         {/if}
         <div class="mobile-preview-actions">
           {#if previewContact}
-            <button class="btn wa sm rcard-send" type="button" onclick={() => openWa(previewContact)}>
+            <button class="btn wa sm mobile-preview-send" type="button" onclick={() => openWa(previewContact)}>
               <Icon name="external" size={14} />
               <span>{t('openWa')}</span>
             </button>
