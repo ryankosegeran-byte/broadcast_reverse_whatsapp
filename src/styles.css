@@ -1982,8 +1982,8 @@ td.col-labels {
 
 .wa-chat-body {
   flex: 0 1 auto;
-  min-height: 60px;
-  padding: 8px;
+  min-height: 52px;
+  padding: 7px 8px;
   display: grid;
   align-content: start;
   overflow-y: auto;
@@ -1992,20 +1992,20 @@ td.col-labels {
 .wa-bubble {
   justify-self: end;
   width: fit-content;
-  min-width: 84px;
+  min-width: 72px;
   max-width: min(92%, 248px);
   background: var(--wa-bubble);
   border: 1px solid var(--wa-bubble-border);
-  border-radius: 10px 3px 10px 10px;
-  padding: 6px 9px 5px;
+  border-radius: 9px 3px 9px 9px;
+  padding: 5px 8px 4px;
   box-shadow: var(--shadow-resting);
   display: grid;
   gap: 2px;
 }
 
 .wa-content {
-  font-size: 0.8125rem;
-  line-height: 1.38;
+  font-size: 0.6875rem;
+  line-height: 1.36;
   color: var(--foreground);
   overflow-wrap: anywhere;
 }
@@ -2016,7 +2016,7 @@ td.col-labels {
 }
 
 .wa-blank {
-  height: 0.55em;
+  height: 0.45em;
 }
 
 .wa-bold {
@@ -2026,8 +2026,8 @@ td.col-labels {
 
 .wa-mono {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
-  padding: 0 4px;
+  font-size: 0.65rem;
+  padding: 0 3px;
   border-radius: 4px;
   background: color-mix(in oklab, var(--foreground) 7%, transparent);
 }
@@ -2043,7 +2043,7 @@ td.col-labels {
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   color: var(--text-muted);
 }
 
